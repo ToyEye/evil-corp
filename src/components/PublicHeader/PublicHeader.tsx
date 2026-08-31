@@ -1,6 +1,9 @@
 import AppBar from "@mui/material/AppBar";
 import Container from "@mui/material/Container";
 import Toolbar from "@mui/material/Toolbar";
+import Typography from "@mui/material/Typography";
+
+const pages = [{ link: "/", name: "Home" }];
 
 export const PublicHeader = () => {
   return (
@@ -15,7 +18,17 @@ export const PublicHeader = () => {
       }}
     >
       <Container maxWidth="md">
-        <Toolbar>Public Header</Toolbar>
+        <Toolbar>
+          <Typography
+            component="a"
+            variant="h6"
+            noWrap
+            sx={{ color: "#000000" }}
+            href="/"
+          >
+            Evil Corp
+          </Typography>
+        </Toolbar>
       </Container>
     </AppBar>
   );
