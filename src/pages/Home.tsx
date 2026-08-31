@@ -1,5 +1,7 @@
+import { PublicLayout } from "../components/PublicLayout/PublicLayout";
+
 const Home = () => {
-  return <div>Home</div>;
+  return <PublicLayout>Home</PublicLayout>;
 };
 
 export default Home;

@@ -2,6 +2,10 @@ import { Route, Routes } from "react-router-dom";
 import { routes } from "./routes";
 import { PublicRoute } from "./PublicRoute";
 import { ProtectedRoute } from "./ProtectedRoute";
+import { lazy } from "react";
+
+const Home = lazy(() => import("../pages/Home"));
+const Dashboard = lazy(() => import("../pages/Dashboard"));
 
 export const Router = () => {
   return (
@@ -11,7 +15,7 @@ export const Router = () => {
         index
         element={
           <PublicRoute>
-            <div>Home</div>
+            <Home />
           </PublicRoute>
         }
       />
@@ -20,7 +24,7 @@ export const Router = () => {
         path={routes.Dashboard}
         element={
           <ProtectedRoute>
-            <div>Dashboard</div>
+            <Dashboard />
           </ProtectedRoute>
         }
       />
