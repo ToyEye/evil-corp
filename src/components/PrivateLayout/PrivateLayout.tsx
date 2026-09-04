@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Box from "@mui/material/Box";
 
 import { Aside } from "../Aside/Aside";
+import { PrivateHeader } from "../PrivateHeader/PrivateHeader";
 import { COLORS } from "../../theme/COLORS";
 
 type PrivateLayoutProps = {
@@ -26,6 +27,7 @@ export const PrivateLayout = ({ children }: PrivateLayoutProps) => {
           minWidth: 0,
         }}
       >
+        <PrivateHeader />
         <Box component="main" sx={{ flex: 1, p: 3 }}>
           <Suspense fallback={<div>Loading...</div>}>{children}</Suspense>
         </Box>
