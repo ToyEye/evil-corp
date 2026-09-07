@@ -1,14 +1,10 @@
 import { createSlice } from "@reduxjs/toolkit";
+import { dummyUsers } from "../../data/users.dummy";
 import { login } from "./auth.operations";
 import type { AuthState } from "./auth.interface";
 
 const initialState: AuthState = {
-  user: {
-    id: "1",
-    name: "John Doe",
-    email: "john.doe@example.com",
-    role: "admin",
-  },
+  user: dummyUsers[0],
   token: null,
   isLoading: false,
   error: null,

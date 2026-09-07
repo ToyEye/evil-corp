@@ -1,13 +1,16 @@
 import { Navigate } from "react-router-dom";
-import { routes } from "./routes";
 import { useSelector } from "react-redux";
-import { selectIsAuthenticated } from "../store/auth/auth.slice";
+
+import { getCompanyNameForUser } from "../data/users.dummy";
+import { selectIsAuthenticated, selectUser } from "../store/auth/auth.slice";
+import { paths } from "./routes";
 
 export const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useSelector(selectIsAuthenticated);
+  const user = useSelector(selectUser);
 
-  if (isAuthenticated) {
-    return <Navigate to={routes.Dashboard} replace />;
+  if (isAuthenticated && user) {
+    return <Navigate to={paths.dashboard(getCompanyNameForUser(user))} replace />;
   }
 
   return children;

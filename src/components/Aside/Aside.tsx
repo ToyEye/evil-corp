@@ -8,10 +8,12 @@ import Typography from "@mui/material/Typography";
 import MenuOpenRoundedIcon from "@mui/icons-material/MenuOpenRounded";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 
-import { selectUserRole } from "../../store/auth/auth.slice";
+import { getCompanyNameForUser } from "../../data/users.dummy";
+import { selectUser } from "../../store/auth/auth.slice";
+import { selectPageAccess } from "../../store/permissions/permissions.slice";
 import { COLORS } from "../../theme/COLORS";
 import { AsideNavItem } from "./AsideNavItem";
-import { ASIDE_LINKS } from "./aside.links";
+import { getAsideLinks } from "./aside.links";
 import {
   ASIDE_COLLAPSED_WIDTH,
   ASIDE_EXPANDED_WIDTH,
@@ -20,10 +22,20 @@ import {
 import { filterLinksByAccess } from "./aside.utils";
 
 export const Aside = () => {
-  const role = useSelector(selectUserRole);
+  const user = useSelector(selectUser);
+  const pageAccess = useSelector(selectPageAccess);
   const [isOpen, setIsOpen] = useState(true);
 
-  const links = useMemo(() => filterLinksByAccess(ASIDE_LINKS, role), [role]);
+  const links = useMemo(() => {
+    if (!user) {
+      return [];
+    }
+
+    return filterLinksByAccess(
+      getAsideLinks(getCompanyNameForUser(user), pageAccess),
+      user.role,
+    );
+  }, [pageAccess, user]);
 
   return (
     <Box

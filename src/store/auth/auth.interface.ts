@@ -1,9 +1,6 @@
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-}
+import type { User as SchemaUser } from "../../data/users.schema";
+
+export type User = SchemaUser;
 
 export interface AuthState {
   user: User | null;
