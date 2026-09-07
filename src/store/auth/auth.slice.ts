@@ -4,7 +4,7 @@ import { login } from "./auth.operations";
 import type { AuthState } from "./auth.interface";
 
 const initialState: AuthState = {
-  user: dummyUsers[0],
+  user: dummyUsers[4],
   token: null,
   isLoading: false,
   error: null,

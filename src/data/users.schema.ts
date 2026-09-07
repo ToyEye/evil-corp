@@ -55,7 +55,7 @@ export const usersSchema = z
 
       return adminCompanyIds.size === 1;
     },
-    { message: "Only one company can have the admin role" },
+    { message: "Admin role can belong to only one company" },
   )
   .refine(
     (users) => {

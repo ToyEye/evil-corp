@@ -29,8 +29,8 @@ export const appPages = appPagesData.map((page) => appPageSchema.parse(page));
 
 export const defaultPageAccess: PageAccess = pageAccessSchema.parse({
   dashboard: [...USER_ROLES],
-  users: ["admin"],
-  settings: ["admin"],
+  users: ["admin", "SEO"],
+  settings: ["admin", "SEO"],
 });
 
 export const isPageAccessLocked = (pageId: AppPageId, role: UserRole) =>

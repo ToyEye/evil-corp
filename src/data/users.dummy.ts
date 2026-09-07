@@ -1,10 +1,7 @@
+import { dummyCompanies, getPlatformCompany } from "./companies.dummy";
 import { usersSchema, type User } from "./users.schema";
 
-export const dummyCompanies = [
-  { id: "company-1", name: "Vertex Capital" },
-  { id: "company-2", name: "RapidRoute Logistics" },
-  { id: "company-3", name: "Peak Storage" },
-] as const;
+export { dummyCompanies } from "./companies.dummy";
 
 const [vertexCapital, rapidRoute, peakStorage] = dummyCompanies;
 
@@ -124,6 +121,18 @@ const dummyUsersData: User[] = [
 ];
 
 export const dummyUsers = usersSchema.parse(dummyUsersData);
+
+const platformCompany = getPlatformCompany();
+const adminCompanyIds = new Set(
+  dummyUsers.filter((user) => user.role === "admin").map((user) => user.companyId),
+);
+
+if (adminCompanyIds.size !== 1 || !adminCompanyIds.has(platformCompany.id)) {
+  throw new Error("Admin users are allowed only in the platform company");
+}
+
+export const getCompanyUserCount = (companyId: string) =>
+  dummyUsers.filter((user) => user.companyId === companyId).length;
 
 export const getCompanyNameForUser = (user: {
   id?: string;

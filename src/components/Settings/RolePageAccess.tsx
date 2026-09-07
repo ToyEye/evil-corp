@@ -11,11 +11,12 @@ import TableRow from "@mui/material/TableRow";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
+import { getAssignableRoles } from "../../data/companies.dummy";
 import {
   appPages,
   isPageAccessLocked,
 } from "../../data/permissions.dummy";
-import { USER_ROLES } from "../../data/users.schema";
+import { selectUser } from "../../store/auth/auth.slice";
 import {
   resetPageAccess,
   selectPageAccess,
@@ -26,7 +27,9 @@ import { COLORS } from "../../theme/COLORS";
 
 export const RolePageAccess = () => {
   const dispatch = useAppDispatch();
+  const user = useSelector(selectUser);
   const pageAccess = useSelector(selectPageAccess);
+  const roles = user ? getAssignableRoles(user.companyId) : [];
 
   return (
     <Box
@@ -98,7 +101,7 @@ export const RolePageAccess = () => {
               >
                 Page
               </TableCell>
-              {USER_ROLES.map((role) => (
+              {roles.map((role) => (
                 <TableCell
                   key={role}
                   align="center"
@@ -134,7 +137,7 @@ export const RolePageAccess = () => {
                     {page.description}
                   </Typography>
                 </TableCell>
-                {USER_ROLES.map((role) => {
+                {roles.map((role) => {
                   const locked = isPageAccessLocked(page.id, role);
                   const checkbox = (
                     <Checkbox
