@@ -21,6 +21,7 @@ import { permissionsSlice } from "./permissions/permissions.slice";
 import { restockSlice } from "./restock/restock.slice";
 import { suppliersSlice } from "./suppliers/suppliers.slice";
 import { companiesSlice } from "./companies/companies.slice";
+import { usersSlice } from "./users/users.slice";
 
 const persistMigrations = {
   1: (state: PersistedState) => {
@@ -90,6 +91,7 @@ const store = configureStore({
     restock: restockSlice.reducer,
     suppliers: suppliersSlice.reducer,
     companies: persistedCompaniesReducer,
+    users: usersSlice.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

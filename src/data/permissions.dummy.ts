@@ -39,7 +39,7 @@ export const appPages = appPagesData.map((page) => appPageSchema.parse(page));
 
 export const defaultPageAccess: PageAccess = pageAccessSchema.parse({
   dashboard: [...USER_ROLES],
-  users: ["admin", "SEO"],
+  users: ["admin", "SEO", "Staff"],
   settings: ["admin", "SEO"],
   warehouse: ["SEO", "Storekeeper"],
   suppliers: ["SEO", "Supply"],

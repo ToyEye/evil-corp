@@ -6,13 +6,14 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 
 import {
-  findDummyUser,
-  getDummyRolesForCompany,
+  findUserByCompanyRole,
+  getRolesForCompany,
 } from "../../data/users.dummy";
 import type { UserRole } from "../../data/users.schema";
 import { toCompanySlug } from "../../routing/routes";
 import { selectUser, setPreviewUser } from "../../store/auth/auth.slice";
 import { selectCompanies } from "../../store/companies/companies.slice";
+import { selectUsers } from "../../store/users/users.slice";
 import { useAppDispatch } from "../../store/types";
 import { COLORS } from "../../theme/COLORS";
 import { PREVIEW_BAR_HEIGHT } from "./previewSwitcher.styles";
@@ -61,15 +62,17 @@ export const PreviewSwitcher = () => {
   const location = useLocation();
   const user = useSelector(selectUser);
   const companies = useSelector(selectCompanies);
+  const users = useSelector(selectUsers);
 
   if (!user) {
     return null;
   }
 
-  const roles = getDummyRolesForCompany(user.companyId);
+  const roles = getRolesForCompany(users, user.companyId);
+  const roleOptions = roles.includes(user.role) ? roles : [user.role, ...roles];
 
   const applyUser = (companyId: string, role: UserRole) => {
-    const nextUser = findDummyUser(companyId, role);
+    const nextUser = findUserByCompanyRole(users, companyId, role);
 
     if (!nextUser) {
       return;
@@ -126,7 +129,7 @@ export const PreviewSwitcher = () => {
         value={user.companyId}
         onChange={(event) => {
           const companyId = event.target.value;
-          const companyRoles = getDummyRolesForCompany(companyId);
+          const companyRoles = getRolesForCompany(users, companyId);
           const nextRole = companyRoles.includes(user.role) ? user.role : companyRoles[0];
 
           if (nextRole) {
@@ -164,7 +167,7 @@ export const PreviewSwitcher = () => {
         }}
         sx={selectSx}
       >
-        {roles.map((role) => (
+        {roleOptions.map((role) => (
           <MenuItem key={role} value={role}>
             {role}
           </MenuItem>

@@ -5,6 +5,7 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import InputAdornment from "@mui/material/InputAdornment";
+import MenuItem from "@mui/material/MenuItem";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -23,9 +24,17 @@ import {
   useTable,
 } from "@tanstack/react-table";
 
-import { dummyUsers } from "../../data/users.dummy";
-import { USER_ROLES, type User } from "../../data/users.schema";
+import {
+  canAssignCompanyRoles,
+  getAssignableMemberRoles,
+  isPlatformUser,
+} from "../../data/companies.dummy";
+import { getVisibleUsers } from "../../data/users.dummy";
+import { USER_ROLES, type User, type UserRole } from "../../data/users.schema";
+import { selectUser } from "../../store/auth/auth.slice";
 import { selectCompanies } from "../../store/companies/companies.slice";
+import { selectUsers, updateUserRole } from "../../store/users/users.slice";
+import { useAppDispatch } from "../../store/types";
 import { formFieldSx } from "../Forms/formStyles";
 import { COLORS } from "../../theme/COLORS";
 
@@ -35,6 +44,65 @@ const usersTableFeatures = tableFeatures({
 });
 
 const columnHelper = createColumnHelper<typeof usersTableFeatures, User>();
+
+const RoleChip = ({ role }: { role: UserRole }) => (
+  <Chip
+    label={role}
+    size="small"
+    sx={{
+      fontWeight: 600,
+      borderRadius: "8px",
+      backgroundColor: COLORS.primary[50],
+      color: COLORS.primary[700],
+    }}
+  />
+);
+
+const UserRoleCell = ({ user }: { user: User }) => {
+  const dispatch = useAppDispatch();
+  const currentUser = useSelector(selectUser);
+  const canEdit =
+    canAssignCompanyRoles(currentUser?.role) &&
+    Boolean(currentUser) &&
+    user.id !== currentUser?.id &&
+    user.companyId === currentUser?.companyId &&
+    user.role !== "admin";
+
+  if (!canEdit) {
+    return <RoleChip role={user.role} />;
+  }
+
+  const roles = getAssignableMemberRoles(user.companyId);
+  const options = roles.includes(user.role) ? roles : [user.role, ...roles];
+
+  return (
+    <TextField
+      select
+      size="small"
+      value={user.role}
+      onChange={(event) =>
+        dispatch(
+          updateUserRole({
+            id: user.id,
+            role: event.target.value as UserRole,
+          }),
+        )
+      }
+      sx={{ ...formFieldSx, minWidth: 160 }}
+      slotProps={{
+        select: {
+          "aria-label": `Role for ${user.name}`,
+        },
+      }}
+    >
+      {options.map((role) => (
+        <MenuItem key={role} value={role}>
+          {role}
+        </MenuItem>
+      ))}
+    </TextField>
+  );
+};
 
 const columns = columnHelper.columns([
   columnHelper.accessor("name", {
@@ -56,18 +124,7 @@ const columns = columnHelper.columns([
   columnHelper.accessor("role", {
     header: "Role",
     filterFn: filterFn_includesString,
-    cell: (info) => (
-      <Chip
-        label={info.getValue()}
-        size="small"
-        sx={{
-          fontWeight: 600,
-          borderRadius: "8px",
-          backgroundColor: COLORS.primary[50],
-          color: COLORS.primary[700],
-        }}
-      />
-    ),
+    cell: (info) => <UserRoleCell user={info.row.original} />,
   }),
   columnHelper.accessor("companyName", {
     header: "Company",
@@ -84,16 +141,19 @@ const getStringFilterValue = (value: unknown) =>
   typeof value === "string" ? value : "";
 
 export const UsersTable = () => {
+  const user = useSelector(selectUser);
   const companies = useSelector(selectCompanies);
+  const allUsers = useSelector(selectUsers);
+  const canViewAllUsers = isPlatformUser(user);
   const companyOptions = companies.map((company) => company.name);
   const users = useMemo(
     () =>
-      dummyUsers.map((user) => ({
-        ...user,
+      getVisibleUsers(user, allUsers).map((item) => ({
+        ...item,
         companyName:
-          companies.find((company) => company.id === user.companyId)?.name ?? user.companyName,
+          companies.find((company) => company.id === item.companyId)?.name ?? item.companyName,
       })),
-    [companies],
+    [allUsers, companies, user],
   );
   const table = useTable({
     features: usersTableFeatures,
@@ -146,18 +206,20 @@ export const UsersTable = () => {
           }}
         />
 
-        <Autocomplete
-          size="small"
-          freeSolo
-          options={companyOptions}
-          value={getStringFilterValue(companyColumn?.getFilterValue())}
-          inputValue={getStringFilterValue(companyColumn?.getFilterValue())}
-          onInputChange={(_, value) => companyColumn?.setFilterValue(value || undefined)}
-          sx={{ minWidth: 240, flex: 1 }}
-          renderInput={(params) => (
-            <TextField {...params} label="Company" placeholder="Search company" sx={formFieldSx} />
-          )}
-        />
+        {canViewAllUsers ? (
+          <Autocomplete
+            size="small"
+            freeSolo
+            options={companyOptions}
+            value={getStringFilterValue(companyColumn?.getFilterValue())}
+            inputValue={getStringFilterValue(companyColumn?.getFilterValue())}
+            onInputChange={(_, value) => companyColumn?.setFilterValue(value || undefined)}
+            sx={{ minWidth: 240, flex: 1 }}
+            renderInput={(params) => (
+              <TextField {...params} label="Company" placeholder="Search company" sx={formFieldSx} />
+            )}
+          />
+        ) : null}
 
         <Autocomplete
           size="small"
@@ -193,7 +255,7 @@ export const UsersTable = () => {
         </Button>
 
         <Typography variant="body2" sx={{ flex: "1 0 100%", color: COLORS.text.tertiary }}>
-          Showing {rows.length} of {dummyUsers.length} users
+          Showing {rows.length} of {users.length} users
         </Typography>
       </Box>
 

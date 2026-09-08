@@ -1,4 +1,8 @@
-import { USER_ROLES, type UserRole } from "./users.schema";
+import {
+  FORBIDDEN_ROLES_IN_ADMIN_COMPANY,
+  USER_ROLES,
+  type UserRole,
+} from "./users.schema";
 import { companiesSchema, type Company } from "./companies.schema";
 
 const dummyCompaniesData: Company[] = [
@@ -32,3 +36,17 @@ export const getAssignableRoles = (companyId: string): UserRole[] =>
   isPlatformCompanyId(companyId)
     ? [...USER_ROLES]
     : USER_ROLES.filter((role) => role !== "admin");
+
+export const canAssignCompanyRoles = (role: UserRole | null | undefined) =>
+  role === "SEO" || role === "Staff" || role === "admin";
+
+export const getAssignableMemberRoles = (companyId: string): UserRole[] => {
+  const roles = getAssignableRoles(companyId).filter((role) => role !== "admin");
+
+  if (!isPlatformCompanyId(companyId)) {
+    return roles;
+  }
+
+  const forbidden = new Set<string>(FORBIDDEN_ROLES_IN_ADMIN_COMPANY);
+  return roles.filter((role) => !forbidden.has(role));
+};

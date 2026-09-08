@@ -1,4 +1,4 @@
-import { dummyCompanies, getPlatformCompany } from "./companies.dummy";
+import { dummyCompanies, getPlatformCompany, isPlatformUser } from "./companies.dummy";
 import { USER_ROLES, usersSchema, type User, type UserRole } from "./users.schema";
 
 export { dummyCompanies } from "./companies.dummy";
@@ -150,6 +150,21 @@ if (adminCompanyIds.size !== 1 || !adminCompanyIds.has(platformCompany.id)) {
 export const getCompanyUserCount = (companyId: string) =>
   dummyUsers.filter((user) => user.companyId === companyId).length;
 
+export const getVisibleUsers = (
+  user: { companyId?: string } | null | undefined,
+  allUsers: User[] = dummyUsers,
+) => {
+  if (!user?.companyId) {
+    return [];
+  }
+
+  if (isPlatformUser(user)) {
+    return allUsers;
+  }
+
+  return allUsers.filter((item) => item.companyId === user.companyId);
+};
+
 export const getCompanyNameForUser = (user: {
   id?: string;
   email?: string;
@@ -165,10 +180,19 @@ export const getCompanyNameForUser = (user: {
   );
 };
 
+export const findUserByCompanyRole = (
+  users: User[],
+  companyId: string,
+  role: UserRole,
+) => users.find((user) => user.companyId === companyId && user.role === role);
+
+export const getRolesForCompany = (users: User[], companyId: string) =>
+  USER_ROLES.filter((role) =>
+    users.some((user) => user.companyId === companyId && user.role === role),
+  );
+
 export const findDummyUser = (companyId: string, role: UserRole) =>
-  dummyUsers.find((user) => user.companyId === companyId && user.role === role);
+  findUserByCompanyRole(dummyUsers, companyId, role);
 
 export const getDummyRolesForCompany = (companyId: string) =>
-  USER_ROLES.filter((role) =>
-    dummyUsers.some((user) => user.companyId === companyId && user.role === role),
-  );
+  getRolesForCompany(dummyUsers, companyId);

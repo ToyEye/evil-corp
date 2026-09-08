@@ -22,7 +22,13 @@ export const userSchema = z.object({
   avatarUrl: z.string().optional(),
 });
 
-const FORBIDDEN_ROLES_IN_ADMIN_COMPANY = new Set(["driver", "Storekeeper", "Supply"]);
+export const FORBIDDEN_ROLES_IN_ADMIN_COMPANY = [
+  "driver",
+  "Storekeeper",
+  "Supply",
+] as const;
+
+const forbiddenRolesInAdminCompany = new Set<string>(FORBIDDEN_ROLES_IN_ADMIN_COMPANY);
 
 export const usersSchema = z
   .array(userSchema)
@@ -68,7 +74,7 @@ export const usersSchema = z
       return !users.some(
         (user) =>
           adminCompanyIds.has(user.companyId) &&
-          FORBIDDEN_ROLES_IN_ADMIN_COMPANY.has(user.role),
+          forbiddenRolesInAdminCompany.has(user.role),
       );
     },
     { message: "A company with an admin cannot have driver, Storekeeper, or Supply roles" },
