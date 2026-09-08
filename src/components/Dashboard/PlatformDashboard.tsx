@@ -1,3 +1,4 @@
+import PeopleOutlinedIcon from "@mui/icons-material/PeopleOutlined";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Typography from "@mui/material/Typography";
@@ -33,11 +34,14 @@ export const PlatformDashboard = () => {
         </Typography>
       </Box>
 
-      <DashboardStatCard
-        label="Total users"
-        value={dummyUsers.length}
-        description="People across all companies"
-      />
+      <Box sx={{ maxWidth: 360, minWidth: 0 }}>
+        <DashboardStatCard
+          label="Total users"
+          value={dummyUsers.length}
+          description="People across all companies"
+          icon={PeopleOutlinedIcon}
+        />
+      </Box>
     </Box>
   );
 };
