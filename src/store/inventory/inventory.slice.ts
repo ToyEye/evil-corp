@@ -7,6 +7,11 @@ type InventoryState = {
   items: InventoryItem[];
 };
 
+type AdjustInventoryQuantityPayload = {
+  id: string;
+  delta: number;
+};
+
 const initialState: InventoryState = {
   items: dummyInventoryItems,
 };
@@ -25,13 +30,23 @@ export const inventorySlice = createSlice({
         state.items[index] = action.payload;
       }
     },
+    adjustInventoryQuantity: (state, action: PayloadAction<AdjustInventoryQuantityPayload>) => {
+      const item = state.items.find((entry) => entry.id === action.payload.id);
+
+      if (!item) {
+        return;
+      }
+
+      item.quantity = Math.max(0, item.quantity + action.payload.delta);
+    },
   },
   selectors: {
     selectInventoryItems: (state) => state.items,
   },
 });
 
-export const { addInventoryItem, updateInventoryItem } = inventorySlice.actions;
+export const { addInventoryItem, updateInventoryItem, adjustInventoryQuantity } =
+  inventorySlice.actions;
 
 export const { selectInventoryItems } = inventorySlice.selectors;
 

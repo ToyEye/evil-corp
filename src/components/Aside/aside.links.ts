@@ -1,7 +1,9 @@
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
+import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import PeopleOutlinedIcon from "@mui/icons-material/PeopleOutlined";
+import RouteOutlinedIcon from "@mui/icons-material/RouteOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 
 import type { PageAccess } from "../../data/permissions.schema";
@@ -51,6 +53,34 @@ export const getAsideLinks = (
         label: "Restock requests",
         href: paths.suppliersRequests(companyName),
         access: pageAccess.suppliers,
+      },
+    ],
+  },
+  {
+    id: "clients",
+    label: "Clients",
+    href: paths.clients(companyName),
+    icon: GroupOutlinedIcon,
+    access: pageAccess.clients,
+  },
+  {
+    id: "deliveries",
+    label: "Deliveries",
+    href: paths.deliveries(companyName),
+    icon: RouteOutlinedIcon,
+    access: pageAccess.deliveries,
+    children: [
+      {
+        id: "deliveries-assigned",
+        label: "Assigned",
+        href: paths.deliveries(companyName),
+        access: pageAccess.deliveries,
+      },
+      {
+        id: "deliveries-create",
+        label: "Create delivery",
+        href: paths.createDelivery(companyName),
+        access: pageAccess.deliveries,
       },
     ],
   },

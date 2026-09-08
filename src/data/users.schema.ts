@@ -7,6 +7,7 @@ export const USER_ROLES = [
   "Supply",
   "Accountant",
   "Staff",
+  "Client",
   "admin",
 ] as const;
 
@@ -26,6 +27,7 @@ export const FORBIDDEN_ROLES_IN_ADMIN_COMPANY = [
   "driver",
   "Storekeeper",
   "Supply",
+  "Client",
 ] as const;
 
 const forbiddenRolesInAdminCompany = new Set<string>(FORBIDDEN_ROLES_IN_ADMIN_COMPANY);
@@ -77,7 +79,7 @@ export const usersSchema = z
           forbiddenRolesInAdminCompany.has(user.role),
       );
     },
-    { message: "A company with an admin cannot have driver, Storekeeper, or Supply roles" },
+    { message: "A company with an admin cannot have driver, Storekeeper, Supply, or Client roles" },
   );
 
 export type UserRole = z.infer<typeof userRoleSchema>;

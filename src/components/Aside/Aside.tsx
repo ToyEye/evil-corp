@@ -7,6 +7,7 @@ import Tooltip from "@mui/material/Tooltip";
 import MenuOpenRoundedIcon from "@mui/icons-material/MenuOpenRounded";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 
+import { isPlatformUser } from "../../data/companies.dummy";
 import { selectUser } from "../../store/auth/auth.slice";
 import { selectCompanies } from "../../store/companies/companies.slice";
 import { selectPageAccess } from "../../store/permissions/permissions.slice";
@@ -68,7 +69,13 @@ export const Aside = () => {
       return [];
     }
 
-    return filterLinksByAccess(getAsideLinks(companyName, pageAccess), user.role);
+    const accessible = filterLinksByAccess(getAsideLinks(companyName, pageAccess), user.role);
+
+    if (!isPlatformUser(user)) {
+      return accessible;
+    }
+
+    return accessible.filter((link) => link.id !== "clients" && link.id !== "deliveries");
   }, [companyName, pageAccess, user]);
 
   return (

@@ -141,7 +141,7 @@ export const RolePageAccess = () => {
                   const locked = isPageAccessLocked(page.id, role);
                   const checkbox = (
                     <Checkbox
-                      checked={pageAccess[page.id].includes(role)}
+                      checked={pageAccess[page.id]?.includes(role) ?? false}
                       disabled={locked}
                       onChange={(_, allowed) =>
                         dispatch(

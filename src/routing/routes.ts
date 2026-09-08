@@ -13,6 +13,9 @@ export const routes = {
   Suppliers: "/:companyName/suppliers",
   SuppliersDirectory: "/:companyName/suppliers/directory",
   SuppliersRequests: "/:companyName/suppliers/requests",
+  Clients: "/:companyName/clients",
+  Deliveries: "/:companyName/deliveries",
+  CreateDelivery: "/:companyName/deliveries/new",
 } as const;
 
 export const toCompanySlug = (companyName: string | null | undefined) => {
@@ -46,4 +49,7 @@ export const paths = {
     withCompany(routes.SuppliersDirectory, companyName),
   suppliersRequests: (companyName: string) =>
     withCompany(routes.SuppliersRequests, companyName),
+  clients: (companyName: string) => withCompany(routes.Clients, companyName),
+  deliveries: (companyName: string) => withCompany(routes.Deliveries, companyName),
+  createDelivery: (companyName: string) => withCompany(routes.CreateDelivery, companyName),
 };

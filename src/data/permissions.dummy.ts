@@ -33,6 +33,16 @@ const appPagesData: AppPage[] = [
     label: "Suppliers",
     description: "Supplier directory for the supply department",
   },
+  {
+    id: "clients",
+    label: "Clients",
+    description: "Customer directory with contacts and delivery addresses",
+  },
+  {
+    id: "deliveries",
+    label: "Deliveries",
+    description: "Assigned deliveries and delivery creation",
+  },
 ];
 
 export const appPages = appPagesData.map((page) => appPageSchema.parse(page));
@@ -43,6 +53,8 @@ export const defaultPageAccess: PageAccess = pageAccessSchema.parse({
   settings: ["admin", "SEO"],
   warehouse: ["SEO", "Storekeeper"],
   suppliers: ["SEO", "Supply"],
+  clients: ["SEO", "Staff"],
+  deliveries: ["Staff"],
 });
 
 export const isPageAccessLocked = (pageId: AppPageId, role: UserRole) =>

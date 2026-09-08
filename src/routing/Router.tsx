@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { lazy } from "react";
 
 import { AccessRoute } from "./AccessRoute";
+import { ClientCompanyRoute } from "./ClientCompanyRoute";
 import { LegacyCompanyRedirect, ProtectedRoute } from "./ProtectedRoute";
 import { PublicRoute } from "./PublicRoute";
 import { routes } from "./routes";
@@ -14,6 +15,9 @@ const Account = lazy(() => import("../pages/Account"));
 const Warehouse = lazy(() => import("../pages/Warehouse"));
 const Suppliers = lazy(() => import("../pages/Suppliers"));
 const RestockRequests = lazy(() => import("../pages/RestockRequests"));
+const Clients = lazy(() => import("../pages/Clients"));
+const Deliveries = lazy(() => import("../pages/Deliveries"));
+const CreateDelivery = lazy(() => import("../pages/CreateDelivery"));
 
 export const Router = () => {
   return (
@@ -44,6 +48,12 @@ export const Router = () => {
       <Route
         path="/suppliers/requests"
         element={<LegacyCompanyRedirect page="suppliersRequests" />}
+      />
+      <Route path="/clients" element={<LegacyCompanyRedirect page="clients" />} />
+      <Route path="/deliveries" element={<LegacyCompanyRedirect page="deliveries" />} />
+      <Route
+        path="/deliveries/new"
+        element={<LegacyCompanyRedirect page="createDelivery" />}
       />
 
       <Route path="/:companyName" element={<ProtectedRoute />}>
@@ -103,6 +113,36 @@ export const Router = () => {
             <AccessRoute pageId="suppliers">
               <RestockRequests />
             </AccessRoute>
+          }
+        />
+        <Route
+          path="clients"
+          element={
+            <ClientCompanyRoute>
+              <AccessRoute pageId="clients">
+                <Clients />
+              </AccessRoute>
+            </ClientCompanyRoute>
+          }
+        />
+        <Route
+          path="deliveries"
+          element={
+            <ClientCompanyRoute>
+              <AccessRoute pageId="deliveries">
+                <Deliveries />
+              </AccessRoute>
+            </ClientCompanyRoute>
+          }
+        />
+        <Route
+          path="deliveries/new"
+          element={
+            <ClientCompanyRoute>
+              <AccessRoute pageId="deliveries">
+                <CreateDelivery />
+              </AccessRoute>
+            </ClientCompanyRoute>
           }
         />
       </Route>

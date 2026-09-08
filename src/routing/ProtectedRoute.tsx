@@ -30,7 +30,17 @@ export const ProtectedRoute = () => {
 };
 
 type LegacyCompanyRedirectProps = {
-  page: "dashboard" | "users" | "settings" | "warehouse" | "account" | "suppliersDirectory" | "suppliersRequests";
+  page:
+    | "dashboard"
+    | "users"
+    | "settings"
+    | "warehouse"
+    | "account"
+    | "suppliersDirectory"
+    | "suppliersRequests"
+    | "clients"
+    | "deliveries"
+    | "createDelivery";
 };
 
 export const LegacyCompanyRedirect = ({ page }: LegacyCompanyRedirectProps) => {

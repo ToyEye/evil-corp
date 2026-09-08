@@ -4,15 +4,11 @@ export const isGroupLink = (item: AsideLink): item is AsideGroupLink =>
   Array.isArray(item.children) && item.children.length > 0;
 
 export const isItemActive = (item: AsideLink, pathname: string): boolean => {
-  if (item.href && (pathname === item.href || pathname.startsWith(`${item.href}/`))) {
-    return true;
-  }
-
   if (isGroupLink(item)) {
     return item.children.some((child) => isItemActive(child, pathname));
   }
 
-  return false;
+  return Boolean(item.href && pathname === item.href);
 };
 
 export const hasAccess = (access: AsideAccess | undefined, role?: string | null): boolean => {
