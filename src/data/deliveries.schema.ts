@@ -43,5 +43,11 @@ export type DeliveryStatus = z.infer<typeof deliveryStatusSchema>;
 export type DeliveryItem = z.infer<typeof deliveryItemSchema>;
 export type Delivery = z.infer<typeof deliverySchema>;
 
+export const hasDeliverySchedule = (dispatchAt?: string, deliverBy?: string) =>
+  Boolean(dispatchAt || deliverBy);
+
+export const canEditDeliveryAssignment = (status: DeliveryStatus) =>
+  status === "New" || status === "Planned";
+
 export const getDeliveryStatusFromSchedule = (dispatchAt?: string, deliverBy?: string): DeliveryStatus =>
-  dispatchAt || deliverBy ? "Planned" : "New";
+  hasDeliverySchedule(dispatchAt, deliverBy) ? "Planned" : "New";

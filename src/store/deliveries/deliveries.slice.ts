@@ -2,7 +2,13 @@ import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
 import type { ClientAddress } from "../../data/clients.schema";
 import { dummyDeliveries } from "../../data/deliveries.dummy";
-import type { Delivery, DeliveryStatus } from "../../data/deliveries.schema";
+import {
+  canEditDeliveryAssignment,
+  getDeliveryStatusFromSchedule,
+  hasDeliverySchedule,
+  type Delivery,
+  type DeliveryStatus,
+} from "../../data/deliveries.schema";
 
 type DeliveriesState = {
   items: Delivery[];
@@ -11,6 +17,18 @@ type DeliveriesState = {
 type UpdateDeliveryStatusPayload = {
   id: string;
   status: DeliveryStatus;
+};
+
+type UpdateDeliverySchedulePayload = {
+  id: string;
+  dispatchAt?: string;
+  deliverBy?: string;
+};
+
+type UpdateDeliveryDriverPayload = {
+  id: string;
+  driverId?: string;
+  driverName?: string;
 };
 
 type SyncDeliveryClientPayload = {
@@ -37,7 +55,35 @@ export const deliveriesSlice = createSlice({
         return;
       }
 
+      if (
+        action.payload.status === "In transit" &&
+        !hasDeliverySchedule(delivery.dispatchAt, delivery.deliverBy)
+      ) {
+        return;
+      }
+
       delivery.status = action.payload.status;
+    },
+    updateDeliverySchedule: (state, action: PayloadAction<UpdateDeliverySchedulePayload>) => {
+      const delivery = state.items.find((item) => item.id === action.payload.id);
+
+      if (!delivery || !canEditDeliveryAssignment(delivery.status)) {
+        return;
+      }
+
+      delivery.dispatchAt = action.payload.dispatchAt;
+      delivery.deliverBy = action.payload.deliverBy;
+      delivery.status = getDeliveryStatusFromSchedule(delivery.dispatchAt, delivery.deliverBy);
+    },
+    updateDeliveryDriver: (state, action: PayloadAction<UpdateDeliveryDriverPayload>) => {
+      const delivery = state.items.find((item) => item.id === action.payload.id);
+
+      if (!delivery || !canEditDeliveryAssignment(delivery.status)) {
+        return;
+      }
+
+      delivery.driverId = action.payload.driverId;
+      delivery.driverName = action.payload.driverName;
     },
     syncDeliveryClient: (state, action: PayloadAction<SyncDeliveryClientPayload>) => {
       for (const delivery of state.items) {
@@ -59,8 +105,13 @@ export const deliveriesSlice = createSlice({
   },
 });
 
-export const { addDelivery, updateDeliveryStatus, syncDeliveryClient } =
-  deliveriesSlice.actions;
+export const {
+  addDelivery,
+  updateDeliveryStatus,
+  updateDeliverySchedule,
+  updateDeliveryDriver,
+  syncDeliveryClient,
+} = deliveriesSlice.actions;
 
 export const { selectDeliveries } = deliveriesSlice.selectors;
 

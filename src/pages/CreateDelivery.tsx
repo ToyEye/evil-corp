@@ -8,7 +8,7 @@ import { COLORS } from "../theme/COLORS";
 const CreateDelivery = () => {
   return (
     <PrivateLayout>
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5, maxWidth: 760 }}>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
         <Box>
           <Typography
             variant="h5"
