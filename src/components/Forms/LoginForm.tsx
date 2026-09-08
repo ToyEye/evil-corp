@@ -1,8 +1,16 @@
 import { useForm, type SubmitHandler } from "react-hook-form";
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
+
+import { dummyUsers } from "../../data/users.dummy";
+import { paths } from "../../routing/routes";
+import { setPreviewUser } from "../../store/auth/auth.slice";
+import { selectCompanies } from "../../store/companies/companies.slice";
+import { useAppDispatch } from "../../store/types";
 import { COLORS } from "../../theme/COLORS";
 import { formFieldSx, submitButtonSx } from "./formStyles";
 import { PasswordField } from "./PasswordField";
@@ -13,13 +21,37 @@ type LoginInputs = {
 };
 
 export const LoginForm = () => {
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const companies = useSelector(selectCompanies);
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<LoginInputs>();
 
-  const onSubmit: SubmitHandler<LoginInputs> = (data) => console.log(data);
+  const onSubmit: SubmitHandler<LoginInputs> = (data) => {
+    const matched = dummyUsers.find(
+      (user) => user.email.toLowerCase() === data.email.trim().toLowerCase(),
+    );
+
+    if (!matched) {
+      setError("email", { message: "No account found for this email" });
+      return;
+    }
+
+    const company = companies.find((item) => item.id === matched.companyId);
+    const companyName = company?.name ?? matched.companyName;
+
+    dispatch(
+      setPreviewUser({
+        ...matched,
+        companyName,
+      }),
+    );
+    navigate(paths.dashboard(companyName), { replace: true });
+  };
 
   return (
     <Box

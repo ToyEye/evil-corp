@@ -5,7 +5,6 @@ import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 
-import { dummyCompanies } from "../../data/companies.dummy";
 import {
   findDummyUser,
   getDummyRolesForCompany,
@@ -13,6 +12,7 @@ import {
 import type { UserRole } from "../../data/users.schema";
 import { toCompanySlug } from "../../routing/routes";
 import { selectUser, setPreviewUser } from "../../store/auth/auth.slice";
+import { selectCompanies } from "../../store/companies/companies.slice";
 import { useAppDispatch } from "../../store/types";
 import { COLORS } from "../../theme/COLORS";
 import { PREVIEW_BAR_HEIGHT } from "./previewSwitcher.styles";
@@ -60,6 +60,7 @@ export const PreviewSwitcher = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const user = useSelector(selectUser);
+  const companies = useSelector(selectCompanies);
 
   if (!user) {
     return null;
@@ -75,8 +76,17 @@ export const PreviewSwitcher = () => {
     }
 
     const suffix = getPathSuffix(location.pathname, user.companyName);
-    dispatch(setPreviewUser(nextUser));
-    navigate(`/${toCompanySlug(nextUser.companyName)}${suffix}`, { replace: true });
+    const company = companies.find((item) => item.id === nextUser.companyId);
+
+    dispatch(
+      setPreviewUser({
+        ...nextUser,
+        companyName: company?.name ?? nextUser.companyName,
+      }),
+    );
+    navigate(`/${toCompanySlug(company?.name ?? nextUser.companyName)}${suffix}`, {
+      replace: true,
+    });
   };
 
   return (
@@ -132,7 +142,7 @@ export const PreviewSwitcher = () => {
         }}
         sx={selectSx}
       >
-        {dummyCompanies.map((company) => (
+        {companies.map((company) => (
           <MenuItem key={company.id} value={company.id}>
             {company.name}
           </MenuItem>

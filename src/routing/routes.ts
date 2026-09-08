@@ -9,6 +9,7 @@ export const routes = {
   SettingsPassword: "/:companyName/settings/password",
   SettingsSessions: "/:companyName/settings/sessions",
   Warehouse: "/:companyName/warehouse",
+  Account: "/:companyName/account",
   Suppliers: "/:companyName/suppliers",
   SuppliersDirectory: "/:companyName/suppliers/directory",
   SuppliersRequests: "/:companyName/suppliers/requests",
@@ -39,6 +40,7 @@ export const paths = {
   settingsSessions: (companyName: string) =>
     withCompany(routes.SettingsSessions, companyName),
   warehouse: (companyName: string) => withCompany(routes.Warehouse, companyName),
+  account: (companyName: string) => withCompany(routes.Account, companyName),
   suppliers: (companyName: string) => withCompany(routes.Suppliers, companyName),
   suppliersDirectory: (companyName: string) =>
     withCompany(routes.SuppliersDirectory, companyName),

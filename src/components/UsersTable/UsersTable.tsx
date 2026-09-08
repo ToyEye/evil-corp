@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+import { useSelector } from "react-redux";
 import Autocomplete from "@mui/material/Autocomplete";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -21,8 +23,9 @@ import {
   useTable,
 } from "@tanstack/react-table";
 
-import { dummyCompanies, dummyUsers } from "../../data/users.dummy";
+import { dummyUsers } from "../../data/users.dummy";
 import { USER_ROLES, type User } from "../../data/users.schema";
+import { selectCompanies } from "../../store/companies/companies.slice";
 import { formFieldSx } from "../Forms/formStyles";
 import { COLORS } from "../../theme/COLORS";
 
@@ -75,17 +78,27 @@ const columns = columnHelper.columns([
   }),
 ]);
 
-const companyOptions = dummyCompanies.map((company) => company.name);
 const roleOptions = [...USER_ROLES];
 
 const getStringFilterValue = (value: unknown) =>
   typeof value === "string" ? value : "";
 
 export const UsersTable = () => {
+  const companies = useSelector(selectCompanies);
+  const companyOptions = companies.map((company) => company.name);
+  const users = useMemo(
+    () =>
+      dummyUsers.map((user) => ({
+        ...user,
+        companyName:
+          companies.find((company) => company.id === user.companyId)?.name ?? user.companyName,
+      })),
+    [companies],
+  );
   const table = useTable({
     features: usersTableFeatures,
     columns,
-    data: dummyUsers,
+    data: users,
     getRowId: (row) => row.id,
   });
 

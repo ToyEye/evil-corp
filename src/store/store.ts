@@ -20,6 +20,7 @@ import { inventorySlice } from "./inventory/inventory.slice";
 import { permissionsSlice } from "./permissions/permissions.slice";
 import { restockSlice } from "./restock/restock.slice";
 import { suppliersSlice } from "./suppliers/suppliers.slice";
+import { companiesSlice } from "./companies/companies.slice";
 
 const persistMigrations = {
   1: (state: PersistedState) => {
@@ -48,17 +49,38 @@ const persistMigrations = {
       },
     };
   },
+  2: (state: PersistedState) => {
+    if (!state || typeof state !== "object") {
+      return state;
+    }
+
+    const persisted = state as PersistedState & Partial<AuthState>;
+
+    return {
+      ...persisted,
+      profiles: persisted.profiles ?? {},
+    };
+  },
 };
 
 const persistConfig = {
   key: "auth",
   storage,
-  version: 1,
-  whitelist: ["user", "isAuthenticated"],
+  version: 2,
+  whitelist: ["user", "isAuthenticated", "profiles"],
   migrate: createMigrate(persistMigrations, { debug: false }),
 };
 
+const companiesPersistConfig = {
+  key: "companies",
+  storage,
+};
+
 const persistedReducer = persistReducer(persistConfig, authSlice.reducer);
+const persistedCompaniesReducer = persistReducer(
+  companiesPersistConfig,
+  companiesSlice.reducer,
+);
 
 const store = configureStore({
   reducer: {
@@ -67,6 +89,7 @@ const store = configureStore({
     inventory: inventorySlice.reducer,
     restock: restockSlice.reducer,
     suppliers: suppliersSlice.reducer,
+    companies: persistedCompaniesReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

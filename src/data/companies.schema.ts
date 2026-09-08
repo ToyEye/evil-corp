@@ -8,6 +8,7 @@ export const companySchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   type: companyTypeSchema,
+  iconUrl: z.string().optional(),
 });
 
 export const companiesSchema = z

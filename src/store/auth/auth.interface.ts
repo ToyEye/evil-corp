@@ -8,4 +8,5 @@ export interface AuthState {
   isLoading: boolean;
   error: string | null;
   isAuthenticated: boolean;
+  profiles: Record<string, Pick<User, "name" | "email" | "avatarUrl">>;
 }

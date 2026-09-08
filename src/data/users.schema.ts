@@ -19,6 +19,7 @@ export const userSchema = z.object({
   role: userRoleSchema,
   companyName: z.string().min(1),
   companyId: z.string().min(1),
+  avatarUrl: z.string().optional(),
 });
 
 const FORBIDDEN_ROLES_IN_ADMIN_COMPANY = new Set(["driver", "Storekeeper", "Supply"]);

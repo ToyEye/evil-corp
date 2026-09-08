@@ -10,6 +10,7 @@ const Home = lazy(() => import("../pages/Home"));
 const Dashboard = lazy(() => import("../pages/Dashboard"));
 const Users = lazy(() => import("../pages/Users"));
 const Settings = lazy(() => import("../pages/Settings"));
+const Account = lazy(() => import("../pages/Account"));
 const Warehouse = lazy(() => import("../pages/Warehouse"));
 const Suppliers = lazy(() => import("../pages/Suppliers"));
 const RestockRequests = lazy(() => import("../pages/RestockRequests"));
@@ -30,6 +31,7 @@ export const Router = () => {
       <Route path="/dashboard" element={<LegacyCompanyRedirect page="dashboard" />} />
       <Route path="/users" element={<LegacyCompanyRedirect page="users" />} />
       <Route path="/settings" element={<LegacyCompanyRedirect page="settings" />} />
+      <Route path="/account" element={<LegacyCompanyRedirect page="account" />} />
       <Route path="/warehouse" element={<LegacyCompanyRedirect page="warehouse" />} />
       <Route
         path="/suppliers"
@@ -70,6 +72,7 @@ export const Router = () => {
             </AccessRoute>
           }
         />
+        <Route path="account" element={<Account />} />
         <Route
           path="warehouse"
           element={
