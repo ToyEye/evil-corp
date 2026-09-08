@@ -1,7 +1,7 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { dummyUsers } from "../../data/users.dummy";
 import { login } from "./auth.operations";
-import type { AuthState } from "./auth.interface";
+import type { AuthState, User } from "./auth.interface";
 
 const initialState: AuthState = {
   user: dummyUsers[4],
@@ -14,7 +14,12 @@ const initialState: AuthState = {
 export const authSlice = createSlice({
   name: "auth",
   initialState,
-  reducers: {},
+  reducers: {
+    setPreviewUser: (state, action: PayloadAction<User>) => {
+      state.user = action.payload;
+      state.isAuthenticated = true;
+    },
+  },
   extraReducers: (builder) =>
     builder.addCase(login.fulfilled, (state, action) => {
       state.user = action.payload;
@@ -30,6 +35,8 @@ export const authSlice = createSlice({
 });
 
 export default authSlice.reducer;
+
+export const { setPreviewUser } = authSlice.actions;
 
 export const {
   selectUser,

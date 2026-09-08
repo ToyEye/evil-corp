@@ -10,6 +10,9 @@ const Home = lazy(() => import("../pages/Home"));
 const Dashboard = lazy(() => import("../pages/Dashboard"));
 const Users = lazy(() => import("../pages/Users"));
 const Settings = lazy(() => import("../pages/Settings"));
+const Warehouse = lazy(() => import("../pages/Warehouse"));
+const Suppliers = lazy(() => import("../pages/Suppliers"));
+const RestockRequests = lazy(() => import("../pages/RestockRequests"));
 
 export const Router = () => {
   return (
@@ -27,6 +30,19 @@ export const Router = () => {
       <Route path="/dashboard" element={<LegacyCompanyRedirect page="dashboard" />} />
       <Route path="/users" element={<LegacyCompanyRedirect page="users" />} />
       <Route path="/settings" element={<LegacyCompanyRedirect page="settings" />} />
+      <Route path="/warehouse" element={<LegacyCompanyRedirect page="warehouse" />} />
+      <Route
+        path="/suppliers"
+        element={<LegacyCompanyRedirect page="suppliersDirectory" />}
+      />
+      <Route
+        path="/suppliers/directory"
+        element={<LegacyCompanyRedirect page="suppliersDirectory" />}
+      />
+      <Route
+        path="/suppliers/requests"
+        element={<LegacyCompanyRedirect page="suppliersRequests" />}
+      />
 
       <Route path="/:companyName" element={<ProtectedRoute />}>
         <Route index element={<Navigate to="dashboard" replace />} />
@@ -51,6 +67,38 @@ export const Router = () => {
           element={
             <AccessRoute pageId="settings">
               <Settings />
+            </AccessRoute>
+          }
+        />
+        <Route
+          path="warehouse"
+          element={
+            <AccessRoute pageId="warehouse">
+              <Warehouse />
+            </AccessRoute>
+          }
+        />
+        <Route
+          path="suppliers"
+          element={
+            <AccessRoute pageId="suppliers">
+              <Navigate to="directory" replace />
+            </AccessRoute>
+          }
+        />
+        <Route
+          path="suppliers/directory"
+          element={
+            <AccessRoute pageId="suppliers">
+              <Suppliers />
+            </AccessRoute>
+          }
+        />
+        <Route
+          path="suppliers/requests"
+          element={
+            <AccessRoute pageId="suppliers">
+              <RestockRequests />
             </AccessRoute>
           }
         />

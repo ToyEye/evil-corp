@@ -21,6 +21,8 @@ const clonePageAccess = (access: PageAccess): PageAccess => ({
   dashboard: [...access.dashboard],
   users: [...access.users],
   settings: [...access.settings],
+  warehouse: [...access.warehouse],
+  suppliers: [...access.suppliers],
 });
 
 const initialState: PermissionsState = {

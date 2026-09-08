@@ -11,6 +11,7 @@ import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import { getCompanyNameForUser } from "../../data/users.dummy";
 import { selectUser } from "../../store/auth/auth.slice";
 import { selectPageAccess } from "../../store/permissions/permissions.slice";
+import { PREVIEW_BAR_HEIGHT } from "../PreviewSwitcher/previewSwitcher.styles";
 import { COLORS } from "../../theme/COLORS";
 import { AsideNavItem } from "./AsideNavItem";
 import { getAsideLinks } from "./aside.links";
@@ -44,9 +45,9 @@ export const Aside = () => {
         width: isOpen ? ASIDE_EXPANDED_WIDTH : ASIDE_COLLAPSED_WIDTH,
         m: 2,
         mr: 0,
-        height: "calc(100vh - 32px)",
+        height: `calc(100vh - ${PREVIEW_BAR_HEIGHT}px - 32px)`,
         position: "sticky",
-        top: 16,
+        top: `${PREVIEW_BAR_HEIGHT + 16}px`,
         flexShrink: 0,
         display: "flex",
         flexDirection: "column",

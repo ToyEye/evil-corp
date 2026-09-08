@@ -8,6 +8,10 @@ export const routes = {
   Settings: "/:companyName/settings",
   SettingsPassword: "/:companyName/settings/password",
   SettingsSessions: "/:companyName/settings/sessions",
+  Warehouse: "/:companyName/warehouse",
+  Suppliers: "/:companyName/suppliers",
+  SuppliersDirectory: "/:companyName/suppliers/directory",
+  SuppliersRequests: "/:companyName/suppliers/requests",
 } as const;
 
 export const toCompanySlug = (companyName: string | null | undefined) => {
@@ -34,4 +38,10 @@ export const paths = {
     withCompany(routes.SettingsPassword, companyName),
   settingsSessions: (companyName: string) =>
     withCompany(routes.SettingsSessions, companyName),
+  warehouse: (companyName: string) => withCompany(routes.Warehouse, companyName),
+  suppliers: (companyName: string) => withCompany(routes.Suppliers, companyName),
+  suppliersDirectory: (companyName: string) =>
+    withCompany(routes.SuppliersDirectory, companyName),
+  suppliersRequests: (companyName: string) =>
+    withCompany(routes.SuppliersRequests, companyName),
 };

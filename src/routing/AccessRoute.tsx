@@ -13,6 +13,8 @@ const pagePaths = {
   dashboard: paths.dashboard,
   users: paths.users,
   settings: paths.settings,
+  warehouse: paths.warehouse,
+  suppliers: paths.suppliersDirectory,
 } as const;
 
 type AccessRouteProps = {

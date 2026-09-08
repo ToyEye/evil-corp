@@ -3,6 +3,7 @@ import Box from "@mui/material/Box";
 
 import { Aside } from "../Aside/Aside";
 import { PrivateHeader } from "../PrivateHeader/PrivateHeader";
+import { PREVIEW_BAR_HEIGHT } from "../PreviewSwitcher/previewSwitcher.styles";
 import { COLORS } from "../../theme/COLORS";
 
 type PrivateLayoutProps = {
@@ -14,7 +15,7 @@ export const PrivateLayout = ({ children }: PrivateLayoutProps) => {
     <Box
       sx={{
         display: "flex",
-        minHeight: "100vh",
+        minHeight: `calc(100vh - ${PREVIEW_BAR_HEIGHT}px)`,
         backgroundColor: COLORS.background.page,
       }}
     >

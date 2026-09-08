@@ -1,5 +1,5 @@
 import { dummyCompanies, getPlatformCompany } from "./companies.dummy";
-import { usersSchema, type User } from "./users.schema";
+import { USER_ROLES, usersSchema, type User, type UserRole } from "./users.schema";
 
 export { dummyCompanies } from "./companies.dummy";
 
@@ -79,6 +79,14 @@ const dummyUsersData: User[] = [
     companyId: rapidRoute.id,
   },
   {
+    id: "15",
+    name: "Harper Quinn",
+    email: "harper.quinn@rapidroute.com",
+    role: "Supply",
+    companyName: rapidRoute.name,
+    companyId: rapidRoute.id,
+  },
+  {
     id: "10",
     name: "Yuki Tanaka",
     email: "yuki.tanaka@peakstorage.com",
@@ -118,6 +126,14 @@ const dummyUsersData: User[] = [
     companyName: peakStorage.name,
     companyId: peakStorage.id,
   },
+  {
+    id: "16",
+    name: "Jonas Meier",
+    email: "jonas.meier@peakstorage.com",
+    role: "Supply",
+    companyName: peakStorage.name,
+    companyId: peakStorage.id,
+  },
 ];
 
 export const dummyUsers = usersSchema.parse(dummyUsersData);
@@ -148,3 +164,11 @@ export const getCompanyNameForUser = (user: {
       ?.companyName ?? dummyUsers[0].companyName
   );
 };
+
+export const findDummyUser = (companyId: string, role: UserRole) =>
+  dummyUsers.find((user) => user.companyId === companyId && user.role === role);
+
+export const getDummyRolesForCompany = (companyId: string) =>
+  USER_ROLES.filter((role) =>
+    dummyUsers.some((user) => user.companyId === companyId && user.role === role),
+  );

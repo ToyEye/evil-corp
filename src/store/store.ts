@@ -16,7 +16,10 @@ import storage from "redux-persist/es/storage";
 import { dummyUsers } from "../data/users.dummy";
 import { authSlice } from "./auth/auth.slice";
 import type { AuthState } from "./auth/auth.interface";
+import { inventorySlice } from "./inventory/inventory.slice";
 import { permissionsSlice } from "./permissions/permissions.slice";
+import { restockSlice } from "./restock/restock.slice";
+import { suppliersSlice } from "./suppliers/suppliers.slice";
 
 const persistMigrations = {
   1: (state: PersistedState) => {
@@ -61,6 +64,9 @@ const store = configureStore({
   reducer: {
     auth: persistedReducer,
     permissions: permissionsSlice.reducer,
+    inventory: inventorySlice.reducer,
+    restock: restockSlice.reducer,
+    suppliers: suppliersSlice.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
