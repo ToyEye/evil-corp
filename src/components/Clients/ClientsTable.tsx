@@ -18,11 +18,12 @@ import {
 } from "@tanstack/react-table";
 
 import type { Client } from "../../data/clients.schema";
+import {
+  useClientsQuery,
+  useCreateClientMutation,
+  useUpdateClientMutation,
+} from "../../hooks";
 import { selectUser } from "../../store/auth/auth.slice";
-import { addClient, selectClients, updateClient } from "../../store/clients/clients.slice";
-import { syncDeliveryClient } from "../../store/deliveries/deliveries.slice";
-import { syncOrderClient } from "../../store/orders/orders.slice";
-import { useAppDispatch } from "../../store/types";
 import { COLORS } from "../../theme/COLORS";
 import { ClientDetailModal } from "./ClientDetailModal";
 import { ClientFormModal, type ClientFormValues } from "./ClientFormModal";
@@ -78,9 +79,11 @@ const columns = columnHelper.columns([
 ]);
 
 export const ClientsTable = () => {
-  const dispatch = useAppDispatch();
   const user = useSelector(selectUser);
-  const items = useSelector(selectClients);
+  const { data: itemsData } = useClientsQuery();
+  const createClient = useCreateClientMutation();
+  const updateClientMutation = useUpdateClientMutation();
+  const items = itemsData ?? [];
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [detailItem, setDetailItem] = useState<Client | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -117,58 +120,34 @@ export const ClientsTable = () => {
       }))
       .filter((address) => address.line);
 
-  const handleAdd = (values: ClientFormValues) => {
+  const handleAdd = async (values: ClientFormValues) => {
     if (!user) {
       return;
     }
 
-    dispatch(
-      addClient({
-        id: crypto.randomUUID(),
-        name: values.name.trim(),
-        phone: values.phone.trim(),
-        email: values.email.trim().toLowerCase(),
-        addedAt: values.addedAt,
-        note: values.note.trim(),
-        addresses: toAddresses(values),
-        companyId: user.companyId,
-        companyName: user.companyName,
-      }),
-    );
+    await createClient.mutateAsync({
+      name: values.name.trim(),
+      phone: values.phone.trim(),
+      email: values.email.trim().toLowerCase(),
+      note: values.note.trim(),
+      addresses: toAddresses(values).map(({ line }) => ({ line })),
+    });
     setIsAddOpen(false);
   };
 
-  const handleEdit = (values: ClientFormValues) => {
+  const handleEdit = async (values: ClientFormValues) => {
     if (!detailItem) {
       return;
     }
 
-    const nextClient: Client = {
-      ...detailItem,
+    const updated = await updateClientMutation.mutateAsync({
+      id: detailItem.id,
       name: values.name.trim(),
       phone: values.phone.trim(),
       email: values.email.trim().toLowerCase(),
-      addedAt: values.addedAt,
       note: values.note.trim(),
-      addresses: toAddresses(values),
-    };
-
-    dispatch(updateClient(nextClient));
-    dispatch(
-      syncDeliveryClient({
-        clientId: nextClient.id,
-        clientName: nextClient.name,
-        addresses: nextClient.addresses,
-      }),
-    );
-    dispatch(
-      syncOrderClient({
-        clientId: nextClient.id,
-        clientName: nextClient.name,
-        addresses: nextClient.addresses,
-      }),
-    );
-    setDetailItem(nextClient);
+    });
+    setDetailItem(updated);
     setIsEditing(false);
   };
 

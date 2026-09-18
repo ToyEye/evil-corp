@@ -20,8 +20,7 @@ import {
 import { getOrderTotal, isOrderReadyToShip, type Order } from "../../data/orders.schema";
 import { isDeliveryTerminal } from "../../data/deliveries.schema";
 import { selectUser } from "../../store/auth/auth.slice";
-import { selectDeliveries } from "../../store/deliveries/deliveries.slice";
-import { selectOrders } from "../../store/orders/orders.slice";
+import { useDeliveriesQuery, useOrdersQuery } from "../../hooks";
 import { COLORS } from "../../theme/COLORS";
 import { formatMoney } from "../../utils/formatMoney";
 import { FulfillmentStatusChip } from "../Orders/FulfillmentStatusChip";
@@ -39,8 +38,10 @@ const columnHelper = createColumnHelper<typeof readyOrdersTableFeatures, Order>(
 
 export const ReadyOrdersTable = () => {
   const user = useSelector(selectUser);
-  const orders = useSelector(selectOrders);
-  const deliveries = useSelector(selectDeliveries);
+  const { data: ordersData } = useOrdersQuery();
+  const orders = ordersData ?? [];
+  const { data: deliveriesData } = useDeliveriesQuery();
+  const deliveries = deliveriesData ?? [];
   const [scheduledOrder, setScheduledOrder] = useState<Order | null>(null);
   const canSchedule = user?.role === "Staff";
 

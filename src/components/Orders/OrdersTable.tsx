@@ -18,8 +18,8 @@ import {
 } from "@tanstack/react-table";
 
 import { getOrderTotal, type Order } from "../../data/orders.schema";
+import { useOrdersQuery } from "../../hooks";
 import { selectUser } from "../../store/auth/auth.slice";
-import { selectOrders } from "../../store/orders/orders.slice";
 import { COLORS } from "../../theme/COLORS";
 import { formatMoney } from "../../utils/formatMoney";
 import { FulfillmentStatusChip } from "./FulfillmentStatusChip";
@@ -101,7 +101,8 @@ const columns = columnHelper.columns([
 
 export const OrdersTable = () => {
   const user = useSelector(selectUser);
-  const items = useSelector(selectOrders);
+  const { data: itemsData } = useOrdersQuery();
+  const items = itemsData ?? [];
   const [detailItem, setDetailItem] = useState<Order | null>(null);
 
   const companyItems = useMemo(

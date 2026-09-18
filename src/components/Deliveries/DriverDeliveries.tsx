@@ -6,7 +6,7 @@ import Typography from "@mui/material/Typography";
 
 import { isDeliveryTerminal, type Delivery } from "../../data/deliveries.schema";
 import { selectUser } from "../../store/auth/auth.slice";
-import { selectDeliveries } from "../../store/deliveries/deliveries.slice";
+import { useDeliveriesQuery } from "../../hooks";
 import { COLORS } from "../../theme/COLORS";
 import { formatDateTime } from "../../utils/formatDateTime";
 import { DeliveryDetailModal } from "./DeliveryDetailModal";
@@ -26,7 +26,8 @@ const rankTrip = (item: Delivery) => {
 
 export const DriverDeliveries = () => {
   const user = useSelector(selectUser);
-  const items = useSelector(selectDeliveries);
+  const { data: itemsData } = useDeliveriesQuery();
+  const items = itemsData ?? [];
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const trips = useMemo(() => {

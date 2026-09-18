@@ -1,5 +1,10 @@
 import { useEffect } from "react";
-import { Controller, useForm, useWatch, type SubmitHandler } from "react-hook-form";
+import {
+  Controller,
+  useForm,
+  useWatch,
+  type SubmitHandler,
+} from "react-hook-form";
 import Backdrop from "@mui/material/Backdrop";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -11,15 +16,17 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import CloseIcon from "@mui/icons-material/Close";
 
-import { getAssignableMemberRoles } from "../../data/companies.dummy";
 import type { Company } from "../../data/companies.schema";
 import type { UserRole } from "../../data/users.schema";
+import { getAssignableMemberRoles } from "../../utils/companyAccess";
 import { COLORS } from "../../theme/COLORS";
 import { formFieldSx, submitButtonSx } from "../Forms/formStyles";
+import { PasswordField } from "../Forms/PasswordField";
 
 export type UserFormValues = {
   name: string;
   email: string;
+  password: string;
   companyId: string;
   role: UserRole;
 };
@@ -34,8 +41,13 @@ type UserFormModalProps = {
   onSubmit: SubmitHandler<UserFormValues>;
 };
 
-const defaultRoleFor = (companyId: string): UserRole => {
-  const roles = getAssignableMemberRoles(companyId);
+const rolesForCompany = (companies: Company[], companyId: string) => {
+  const company = companies.find((item) => item.id === companyId);
+  return getAssignableMemberRoles(company?.type ?? "client");
+};
+
+const defaultRoleFor = (companies: Company[], companyId: string): UserRole => {
+  const roles = rolesForCompany(companies, companyId);
   return roles.includes("Staff") ? "Staff" : roles[0];
 };
 
@@ -59,12 +71,14 @@ export const UserFormModal = ({
     defaultValues: {
       name: "",
       email: "",
+      password: "",
       companyId: defaultCompanyId,
-      role: defaultRoleFor(defaultCompanyId),
+      role: defaultRoleFor(companies, defaultCompanyId),
     },
   });
-  const companyId = useWatch({ control, name: "companyId" }) || defaultCompanyId;
-  const roles = getAssignableMemberRoles(companyId);
+  const companyId =
+    useWatch({ control, name: "companyId" }) || defaultCompanyId;
+  const roles = rolesForCompany(companies, companyId);
 
   useEffect(() => {
     if (!isOpen) {
@@ -74,20 +88,21 @@ export const UserFormModal = ({
     reset({
       name: "",
       email: "",
+      password: "",
       companyId: defaultCompanyId,
-      role: defaultRoleFor(defaultCompanyId),
+      role: defaultRoleFor(companies, defaultCompanyId),
     });
-  }, [defaultCompanyId, isOpen, reset]);
+  }, [companies, defaultCompanyId, isOpen, reset]);
 
   useEffect(() => {
-    const nextRoles = getAssignableMemberRoles(companyId);
+    const nextRoles = rolesForCompany(companies, companyId);
 
     if (nextRoles.length === 0) {
       return;
     }
 
     setValue("role", nextRoles.includes("Staff") ? "Staff" : nextRoles[0]);
-  }, [companyId, setValue]);
+  }, [companies, companyId, setValue]);
 
   return (
     <Modal
@@ -133,10 +148,16 @@ export const UserFormModal = ({
             }}
           >
             <Box>
-              <Typography variant="h6" sx={{ fontWeight: 700, color: COLORS.text.primary }}>
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 700, color: COLORS.text.primary }}
+              >
                 Add personnel
               </Typography>
-              <Typography variant="body2" sx={{ color: COLORS.text.secondary, mt: 0.5 }}>
+              <Typography
+                variant="body2"
+                sx={{ color: COLORS.text.secondary, mt: 0.5 }}
+              >
                 Create a login for someone in the company
               </Typography>
             </Box>
@@ -181,6 +202,17 @@ export const UserFormModal = ({
               helperText={errors.email?.message ?? emailError}
               sx={formFieldSx}
             />
+            <PasswordField
+              label="Password"
+              registration={register("password", {
+                required: "Password is required",
+                minLength: {
+                  value: 6,
+                  message: "Password must be at least 6 characters",
+                },
+              })}
+              error={errors.password}
+            />
             {showCompanyField ? (
               <Controller
                 name="companyId"
@@ -206,7 +238,13 @@ export const UserFormModal = ({
               name="role"
               control={control}
               render={({ field }) => (
-                <TextField {...field} label="Role" select fullWidth sx={formFieldSx}>
+                <TextField
+                  {...field}
+                  label="Role"
+                  select
+                  fullWidth
+                  sx={formFieldSx}
+                >
                   {roles.map((role) => (
                     <MenuItem key={role} value={role}>
                       {role}
@@ -215,7 +253,12 @@ export const UserFormModal = ({
                 </TextField>
               )}
             />
-            <Button type="submit" variant="contained" disabled={isSubmitting} sx={submitButtonSx}>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={isSubmitting}
+              sx={submitButtonSx}
+            >
               Add person
             </Button>
           </Box>

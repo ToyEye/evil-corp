@@ -1,18 +1,20 @@
 import { useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import Box from "@mui/material/Box";
+import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import List from "@mui/material/List";
 import Tooltip from "@mui/material/Tooltip";
 import MenuOpenRoundedIcon from "@mui/icons-material/MenuOpenRounded";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 
-import { isPlatformUser } from "../../data/companies.dummy";
+import { useCompaniesQuery, usePermissionsQuery } from "../../hooks";
 import { selectUser } from "../../store/auth/auth.slice";
-import { selectCompanies } from "../../store/companies/companies.slice";
-import { selectPageAccess } from "../../store/permissions/permissions.slice";
-import { canAccessSupportChat } from "../../routing/supportAccess";
-import { PREVIEW_BAR_HEIGHT } from "../PreviewSwitcher/previewSwitcher.styles";
+import {
+  canAccessSupportChat,
+  EMPTY_PAGE_ACCESS,
+} from "../../routing/supportAccess";
+import { isPlatformUser } from "../../utils/companyAccess";
 import { COLORS } from "../../theme/COLORS";
 import { FitText } from "../common/FitText";
 import { AsideNavItem } from "./AsideNavItem";
@@ -59,8 +61,11 @@ const CompanyMark = ({ iconUrl, size }: { iconUrl?: string; size: number }) => {
 
 export const Aside = () => {
   const user = useSelector(selectUser);
-  const pageAccess = useSelector(selectPageAccess);
-  const companies = useSelector(selectCompanies);
+  const { data: permissions, isLoading: permissionsLoading } =
+    usePermissionsQuery();
+  const { data: companiesData } = useCompaniesQuery();
+  const pageAccess = permissions?.pageAccess ?? EMPTY_PAGE_ACCESS;
+  const companies = companiesData ?? [];
   const [isOpen, setIsOpen] = useState(true);
   const company = companies.find((item) => item.id === user?.companyId);
   const companyName = company?.name ?? user?.companyName ?? "";
@@ -70,11 +75,14 @@ export const Aside = () => {
       return [];
     }
 
-    const accessible = filterLinksByAccess(getAsideLinks(companyName, pageAccess), user.role).filter(
+    const accessible = filterLinksByAccess(
+      getAsideLinks(companyName, pageAccess),
+      user.role,
+    ).filter(
       (link) => link.id !== "support" || canAccessSupportChat(user, pageAccess),
     );
 
-    if (!isPlatformUser(user)) {
+    if (!isPlatformUser(user, companies)) {
       return accessible;
     }
 
@@ -85,7 +93,7 @@ export const Aside = () => {
         link.id !== "orders" &&
         link.id !== "invoices",
     );
-  }, [companyName, pageAccess, user]);
+  }, [companies, companyName, pageAccess, user]);
 
   return (
     <Box
@@ -94,9 +102,9 @@ export const Aside = () => {
         width: isOpen ? ASIDE_EXPANDED_WIDTH : ASIDE_COLLAPSED_WIDTH,
         m: 2,
         mr: 0,
-        height: `calc(100vh - ${PREVIEW_BAR_HEIGHT}px - 32px)`,
+        height: "calc(100vh - 32px)",
         position: "sticky",
-        top: `${PREVIEW_BAR_HEIGHT + 16}px`,
+        top: 16,
         flexShrink: 0,
         display: "flex",
         flexDirection: "column",
@@ -134,15 +142,25 @@ export const Aside = () => {
             transition: "opacity 0.2s ease, width 0.28s ease, flex 0.28s ease",
           }}
         >
-          <CompanyMark iconUrl={company?.iconUrl} size={company?.iconUrl ? 22 : 10} />
+          <CompanyMark
+            iconUrl={company?.iconUrl}
+            size={company?.iconUrl ? 22 : 10}
+          />
           {isOpen && (
             <Box sx={{ minWidth: 0, flex: 1 }}>
-              <FitText text={companyName} maxFontSize={16} sx={{ color: COLORS.text.primary }} />
+              <FitText
+                text={companyName}
+                maxFontSize={16}
+                sx={{ color: COLORS.text.primary }}
+              />
             </Box>
           )}
         </Box>
 
-        <Tooltip title={isOpen ? "Collapse menu" : "Expand menu"} placement="right">
+        <Tooltip
+          title={isOpen ? "Collapse menu" : "Expand menu"}
+          placement="right"
+        >
           <IconButton
             onClick={() => setIsOpen((open) => !open)}
             aria-label={isOpen ? "Collapse menu" : "Expand menu"}
@@ -164,21 +182,27 @@ export const Aside = () => {
         </Tooltip>
       </Box>
 
-      <List
-        component="nav"
-        aria-label="Main navigation"
-        disablePadding
-        sx={{
-          flex: 1,
-          overflowY: "auto",
-          overflowX: "hidden",
-          py: 1.25,
-        }}
-      >
-        {links.map((item) => (
-          <AsideNavItem key={item.id} item={item} collapsed={!isOpen} />
-        ))}
-      </List>
+      {permissionsLoading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+          <CircularProgress size={24} />
+        </Box>
+      ) : (
+        <List
+          component="nav"
+          aria-label="Main navigation"
+          disablePadding
+          sx={{
+            flex: 1,
+            overflowY: "auto",
+            overflowX: "hidden",
+            py: 1.25,
+          }}
+        >
+          {links.map((item) => (
+            <AsideNavItem key={item.id} item={item} collapsed={!isOpen} />
+          ))}
+        </List>
+      )}
     </Box>
   );
 };

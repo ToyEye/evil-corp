@@ -95,7 +95,7 @@ export const AuthModal = ({ isOpen, onClose }: Props) => {
               >
                 {value === 0
                   ? "Access your account"
-                  : "Start your journey with us"}
+                  : "Request access to Evil Corp"}
               </Typography>
             </Box>
 
@@ -146,7 +146,7 @@ export const AuthModal = ({ isOpen, onClose }: Props) => {
               }}
             >
               <Tab label="Sign in" {...a11yProps(0)} />
-              <Tab label="Sign up" {...a11yProps(1)} />
+              <Tab label="Request access" {...a11yProps(1)} />
             </Tabs>
           </Box>
 

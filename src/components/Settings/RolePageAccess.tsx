@@ -2,6 +2,7 @@ import { useSelector } from "react-redux";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
+import CircularProgress from "@mui/material/CircularProgress";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -11,25 +12,58 @@ import TableRow from "@mui/material/TableRow";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 
-import { getAssignableRoles } from "../../data/companies.dummy";
 import {
   appPages,
+  defaultPageAccess,
   isPageAccessLocked,
 } from "../../data/permissions.dummy";
-import { selectUser } from "../../store/auth/auth.slice";
+import type { AppPageId } from "../../data/permissions.schema";
+import type { UserRole } from "../../data/users.schema";
 import {
-  resetPageAccess,
-  selectPageAccess,
-  setRolePageAccess,
-} from "../../store/permissions/permissions.slice";
-import { useAppDispatch } from "../../store/types";
+  usePermissionsQuery,
+  useUpdatePermissionsMutation,
+} from "../../hooks";
+import { selectUser } from "../../store/auth/auth.slice";
+import { getAssignableRoles } from "../../utils/companyAccess";
 import { COLORS } from "../../theme/COLORS";
 
 export const RolePageAccess = () => {
-  const dispatch = useAppDispatch();
   const user = useSelector(selectUser);
-  const pageAccess = useSelector(selectPageAccess);
-  const roles = user ? getAssignableRoles(user.companyId) : [];
+  const { data: permissions, isLoading } = usePermissionsQuery();
+  const updatePermissions = useUpdatePermissionsMutation();
+  const pageAccess = permissions?.pageAccess ?? defaultPageAccess;
+  const pages = permissions?.pages ?? appPages;
+  const roles = user?.companyType
+    ? getAssignableRoles(user.companyType)
+    : [];
+
+  const toggleRole = (pageId: AppPageId, role: UserRole, allowed: boolean) => {
+    const current = pageAccess[pageId] ?? [];
+    const nextRoles = allowed
+      ? current.includes(role)
+        ? current
+        : [...current, role]
+      : current.filter((item) => item !== role);
+
+    updatePermissions.mutate({ pageId, roles: nextRoles });
+  };
+
+  const resetDefaults = () => {
+    (Object.keys(defaultPageAccess) as AppPageId[]).forEach((pageId) => {
+      updatePermissions.mutate({
+        pageId,
+        roles: [...defaultPageAccess[pageId]],
+      });
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+        <CircularProgress size={28} />
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -60,13 +94,15 @@ export const RolePageAccess = () => {
             Page access
           </Typography>
           <Typography variant="body2" sx={{ color: COLORS.text.secondary }}>
-            Choose which roles can open each page. The sidebar updates immediately.
+            Choose which roles can open each page. The sidebar updates
+            immediately.
           </Typography>
         </Box>
 
         <Button
           variant="outlined"
-          onClick={() => dispatch(resetPageAccess())}
+          onClick={resetDefaults}
+          disabled={updatePermissions.isPending}
           sx={{
             height: 40,
             borderRadius: "10px",
@@ -121,7 +157,7 @@ export const RolePageAccess = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {appPages.map((page) => (
+            {pages.map((page) => (
               <TableRow
                 key={page.id}
                 sx={{
@@ -130,10 +166,15 @@ export const RolePageAccess = () => {
                 }}
               >
                 <TableCell>
-                  <Typography sx={{ fontWeight: 600, color: COLORS.text.primary }}>
+                  <Typography
+                    sx={{ fontWeight: 600, color: COLORS.text.primary }}
+                  >
                     {page.label}
                   </Typography>
-                  <Typography variant="body2" sx={{ color: COLORS.text.tertiary }}>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: COLORS.text.tertiary }}
+                  >
                     {page.description}
                   </Typography>
                 </TableCell>
@@ -142,15 +183,9 @@ export const RolePageAccess = () => {
                   const checkbox = (
                     <Checkbox
                       checked={pageAccess[page.id]?.includes(role) ?? false}
-                      disabled={locked}
+                      disabled={locked || updatePermissions.isPending}
                       onChange={(_, allowed) =>
-                        dispatch(
-                          setRolePageAccess({
-                            pageId: page.id,
-                            role,
-                            allowed,
-                          }),
-                        )
+                        toggleRole(page.id, role, allowed)
                       }
                       sx={{
                         color: COLORS.border.strong,

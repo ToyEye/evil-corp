@@ -1,9 +1,8 @@
-import { useSelector } from "react-redux";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 
 import type { ActivityEntityType } from "../../data/activity.schema";
-import type { RootState } from "../../store/types";
+import { useActivityQuery } from "../../hooks";
 import { COLORS } from "../../theme/COLORS";
 import { formatDateTime } from "../../utils/formatDateTime";
 
@@ -12,11 +11,13 @@ type ActivityTimelineProps = {
   entityId: string;
 };
 
-export const ActivityTimeline = ({ entityType, entityId }: ActivityTimelineProps) => {
-  const events = useSelector((state: RootState) =>
-    state.activity.items.filter(
-      (item) => item.entityType === entityType && item.entityId === entityId,
-    ),
+export const ActivityTimeline = ({
+  entityType,
+  entityId,
+}: ActivityTimelineProps) => {
+  const { data } = useActivityQuery();
+  const events = (data ?? []).filter(
+    (item) => item.entityType === entityType && item.entityId === entityId,
   );
 
   if (events.length === 0) {
@@ -42,7 +43,13 @@ export const ActivityTimeline = ({ entityType, entityId }: ActivityTimelineProps
             }}
           />
           <Box sx={{ minWidth: 0 }}>
-            <Typography sx={{ color: COLORS.text.primary, fontWeight: 600, lineHeight: 1.4 }}>
+            <Typography
+              sx={{
+                color: COLORS.text.primary,
+                fontWeight: 600,
+                lineHeight: 1.4,
+              }}
+            >
               {event.message}
             </Typography>
             <Typography variant="body2" sx={{ color: COLORS.text.tertiary }}>

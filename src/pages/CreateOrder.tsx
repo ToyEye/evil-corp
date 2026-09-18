@@ -5,7 +5,7 @@ import Typography from "@mui/material/Typography";
 
 import { CreateOrderForm } from "../components/Orders/CreateOrderForm";
 import { PrivateLayout } from "../components/PrivateLayout/PrivateLayout";
-import { getCompanyNameForUser } from "../data/users.dummy";
+import { getCompanyNameForUser } from "../utils/companyAccess";
 import { paths } from "../routing/routes";
 import { selectUser } from "../store/auth/auth.slice";
 import { COLORS } from "../theme/COLORS";

@@ -13,12 +13,13 @@ import Typography from "@mui/material/Typography";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 
-import { dummyUsers } from "../../data/users.dummy";
-import { selectUser, updateCurrentUser } from "../../store/auth/auth.slice";
 import {
-  selectCompanies,
-  updateCompany,
-} from "../../store/companies/companies.slice";
+  useCompaniesQuery,
+  useUpdateCompanyMutation,
+  useUpdateMeMutation,
+  useUsersQuery,
+} from "../../hooks";
+import { selectUser } from "../../store/auth/auth.slice";
 import { selectThemeMode, setThemeMode } from "../../store/theme/theme.slice";
 import { useAppDispatch } from "../../store/types";
 import { COLORS } from "../../theme/COLORS";
@@ -44,7 +45,12 @@ export const AccountSettingsForm = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const user = useSelector(selectUser);
-  const companies = useSelector(selectCompanies);
+  const { data: companiesData } = useCompaniesQuery();
+  const { data: usersData } = useUsersQuery();
+  const updateMe = useUpdateMeMutation();
+  const updateCompanyMutation = useUpdateCompanyMutation();
+  const companies = companiesData ?? [];
+  const users = usersData ?? [];
   const themeMode = useSelector(selectThemeMode);
   const company = companies.find((item) => item.id === user?.companyId);
   const showCompanyFields = canEditCompany(user?.role);
@@ -120,30 +126,25 @@ export const AccountSettingsForm = () => {
     }
   };
 
-  const onSubmit: SubmitHandler<AccountFormValues> = (values) => {
+  const onSubmit: SubmitHandler<AccountFormValues> = async (values) => {
     const nextName = values.name.trim();
     const nextEmail = values.email.trim().toLowerCase();
     let nextCompanyName = company?.name ?? user.companyName;
 
     if (showCompanyFields) {
       nextCompanyName = values.companyName.trim();
-      dispatch(
-        updateCompany({
-          id: user.companyId,
-          name: nextCompanyName,
-          iconUrl,
-        }),
-      );
+      await updateCompanyMutation.mutateAsync({
+        id: user.companyId,
+        name: nextCompanyName,
+        iconUrl,
+      });
     }
 
-    dispatch(
-      updateCurrentUser({
-        name: nextName,
-        email: nextEmail,
-        avatarUrl,
-        companyName: nextCompanyName,
-      }),
-    );
+    await updateMe.mutateAsync({
+      name: nextName,
+      email: nextEmail,
+      avatarUrl,
+    });
     setSaved(true);
     navigate(paths.account(nextCompanyName), { replace: true });
   };
@@ -227,7 +228,7 @@ export const AccountSettingsForm = () => {
             message: "Enter a valid email address",
           },
           validate: (value) => {
-            const taken = dummyUsers.some(
+            const taken = users.some(
               (item) => item.id !== user.id && item.email.toLowerCase() === value.trim().toLowerCase(),
             );
             return taken ? "This email is already in use" : true;

@@ -19,10 +19,12 @@ import {
 
 import { getVehicleRemainingUnits, getVehicleUsedUnits } from "../../data/fleet.utils";
 import type { Vehicle } from "../../data/vehicles.schema";
+import {
+  useCreateVehicleMutation,
+  useDeliveriesQuery,
+  useVehiclesQuery,
+} from "../../hooks";
 import { selectUser } from "../../store/auth/auth.slice";
-import { selectDeliveries } from "../../store/deliveries/deliveries.slice";
-import { addVehicle, selectVehicles } from "../../store/vehicles/vehicles.slice";
-import { useAppDispatch } from "../../store/types";
 import { COLORS } from "../../theme/COLORS";
 import { VehicleFormModal, type VehicleFormValues } from "./VehicleFormModal";
 
@@ -81,10 +83,12 @@ const columns = columnHelper.columns([
 ]);
 
 export const FleetTable = () => {
-  const dispatch = useAppDispatch();
   const user = useSelector(selectUser);
-  const vehicles = useSelector(selectVehicles);
-  const deliveries = useSelector(selectDeliveries);
+  const { data: vehiclesData } = useVehiclesQuery();
+  const { data: deliveriesData } = useDeliveriesQuery();
+  const createVehicle = useCreateVehicleMutation();
+  const vehicles = vehiclesData ?? [];
+  const deliveries = deliveriesData ?? [];
   const [isAddOpen, setIsAddOpen] = useState(false);
   const canManage = user?.role === "Staff";
 
@@ -123,17 +127,12 @@ export const FleetTable = () => {
       return;
     }
 
-    dispatch(
-      addVehicle({
-        id: crypto.randomUUID(),
-        name: values.name.trim(),
-        plate: values.plate.trim().toUpperCase(),
-        type: values.type,
-        maxUnits: values.maxUnits,
-        companyId: user.companyId,
-        companyName: user.companyName,
-      }),
-    );
+    createVehicle.mutate({
+      name: values.name.trim(),
+      plate: values.plate.trim().toUpperCase(),
+      type: values.type,
+      maxUnits: values.maxUnits,
+    });
     setIsAddOpen(false);
   };
 

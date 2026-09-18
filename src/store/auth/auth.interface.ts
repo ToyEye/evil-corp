@@ -1,6 +1,9 @@
+import type { CompanyType } from "../../data/companies.schema";
 import type { User as SchemaUser } from "../../data/users.schema";
 
-export type User = SchemaUser;
+export type User = SchemaUser & {
+  companyType?: CompanyType;
+};
 
 export interface AuthState {
   user: User | null;
@@ -8,5 +11,9 @@ export interface AuthState {
   isLoading: boolean;
   error: string | null;
   isAuthenticated: boolean;
-  profiles: Record<string, Pick<User, "name" | "email" | "avatarUrl">>;
 }
+
+export type LoginResponse = {
+  user: SchemaUser;
+  token: string;
+};

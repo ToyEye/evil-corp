@@ -7,7 +7,6 @@ import Typography from "@mui/material/Typography";
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 
-import { PREVIEW_BAR_HEIGHT } from "../PreviewSwitcher/previewSwitcher.styles";
 import { COLORS } from "../../theme/COLORS";
 import { formFieldSx, submitButtonSx } from "../Forms/formStyles";
 import type { SplitOrderLine } from "./orderForm.utils";
@@ -45,8 +44,7 @@ export const OrderRestockPanel = ({
         paper: {
           sx: {
             width: { xs: "100%", sm: 400 },
-            top: PREVIEW_BAR_HEIGHT,
-            height: `calc(100% - ${PREVIEW_BAR_HEIGHT}px)`,
+            height: "100%",
             overflowY: "auto",
             backgroundColor: COLORS.background.surface,
             borderLeft: `1px solid ${COLORS.border.default}`,

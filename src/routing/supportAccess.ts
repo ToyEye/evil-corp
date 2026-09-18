@@ -1,7 +1,20 @@
 import { hasAccess } from "../components/Aside/aside.utils";
-import { isPlatformUser } from "../data/companies.dummy";
 import type { PageAccess } from "../data/permissions.schema";
 import type { User } from "../data/users.schema";
+import { isPlatformUser } from "../utils/companyAccess";
+
+export const EMPTY_PAGE_ACCESS: PageAccess = {
+  dashboard: [],
+  users: [],
+  settings: [],
+  warehouse: [],
+  suppliers: [],
+  clients: [],
+  deliveries: [],
+  orders: [],
+  invoices: [],
+  support: [],
+};
 
 export const canAccessSupportChat = (
   user: User | null | undefined,

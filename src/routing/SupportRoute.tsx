@@ -1,11 +1,13 @@
 import { Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
+import CircularProgress from "@mui/material/CircularProgress";
+import Box from "@mui/material/Box";
 
-import { getCompanyNameForUser } from "../data/users.dummy";
+import { usePermissionsQuery } from "../hooks";
 import { selectUser } from "../store/auth/auth.slice";
-import { selectPageAccess } from "../store/permissions/permissions.slice";
+import { getCompanyNameForUser } from "../utils/companyAccess";
 import { paths, routes } from "./routes";
-import { canAccessSupportChat } from "./supportAccess";
+import { canAccessSupportChat, EMPTY_PAGE_ACCESS } from "./supportAccess";
 
 type SupportRouteProps = {
   children: React.ReactNode;
@@ -13,15 +15,26 @@ type SupportRouteProps = {
 
 export const SupportRoute = ({ children }: SupportRouteProps) => {
   const user = useSelector(selectUser);
-  const pageAccess = useSelector(selectPageAccess);
+  const { data: permissions, isLoading } = usePermissionsQuery();
+  const pageAccess = permissions?.pageAccess ?? EMPTY_PAGE_ACCESS;
 
   if (!user) {
     return <Navigate to={routes.Home} replace />;
+  }
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+        <CircularProgress size={28} />
+      </Box>
+    );
   }
 
   if (canAccessSupportChat(user, pageAccess)) {
     return children;
   }
 
-  return <Navigate to={paths.dashboard(getCompanyNameForUser(user))} replace />;
+  return (
+    <Navigate to={paths.dashboard(getCompanyNameForUser(user))} replace />
+  );
 };

@@ -8,12 +8,14 @@ import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 
 import { isDeliveryTerminal } from "../../data/deliveries.schema";
 import { isOrderFullyReserved } from "../../data/orders.schema";
-import { getCompanyNameForUser } from "../../data/users.dummy";
+import {
+  useDeliveriesQuery,
+  useInventoryQuery,
+  useOrdersQuery,
+} from "../../hooks";
 import { paths } from "../../routing/routes";
 import { selectUser } from "../../store/auth/auth.slice";
-import { selectDeliveries } from "../../store/deliveries/deliveries.slice";
-import { selectInventoryItems } from "../../store/inventory/inventory.slice";
-import { selectOrders } from "../../store/orders/orders.slice";
+import { getCompanyNameForUser } from "../../utils/companyAccess";
 import { COLORS } from "../../theme/COLORS";
 import { getStockLevel } from "../../theme/stockLevel";
 
@@ -34,9 +36,12 @@ type OpsExceptionsProps = {
 export const OpsExceptions = ({ companyId }: OpsExceptionsProps) => {
   const navigate = useNavigate();
   const user = useSelector(selectUser);
-  const inventory = useSelector(selectInventoryItems);
-  const orders = useSelector(selectOrders);
-  const deliveries = useSelector(selectDeliveries);
+  const { data: inventoryData } = useInventoryQuery();
+  const { data: ordersData } = useOrdersQuery();
+  const { data: deliveriesData } = useDeliveriesQuery();
+  const inventory = inventoryData ?? [];
+  const orders = ordersData ?? [];
+  const deliveries = deliveriesData ?? [];
   const companyName = user ? getCompanyNameForUser(user) : "";
   const now = Date.now();
 

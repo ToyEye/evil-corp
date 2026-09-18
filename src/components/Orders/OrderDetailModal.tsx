@@ -14,12 +14,8 @@ import {
   isOrderFullyReserved,
   type Order,
 } from "../../data/orders.schema";
+import { useClientsQuery, usePayOrderMutation } from "../../hooks";
 import { selectUser } from "../../store/auth/auth.slice";
-import { selectClients } from "../../store/clients/clients.slice";
-import { issueInvoiceForOrder } from "../../store/invoices/issueInvoice";
-import { updateOrderStatus } from "../../store/orders/orders.slice";
-import { logOpsEvent } from "../../store/ops/logOpsEvent";
-import { useAppDispatch } from "../../store/types";
 import { COLORS } from "../../theme/COLORS";
 import { formatMoney } from "../../utils/formatMoney";
 import { ActivityTimeline } from "../Activity/ActivityTimeline";
@@ -51,9 +47,10 @@ const DetailBlock = ({ label, value }: { label: string; value: string }) => (
 );
 
 export const OrderDetailModal = ({ order, onClose }: OrderDetailModalProps) => {
-  const dispatch = useAppDispatch();
   const user = useSelector(selectUser);
-  const clients = useSelector(selectClients);
+  const { data: clientsData } = useClientsQuery();
+  const payOrder = usePayOrderMutation();
+  const clients = clientsData ?? [];
   const client = clients.find((item) => item.id === order?.clientId);
   const canMarkPaid = user?.role === "Accountant" && order?.status === "New";
   const isOpen = Boolean(order);
@@ -63,19 +60,7 @@ export const OrderDetailModal = ({ order, onClose }: OrderDetailModalProps) => {
       return;
     }
 
-    dispatch(updateOrderStatus({ id: order.id, status: "Paid" }));
-    dispatch(issueInvoiceForOrder(order, user));
-    dispatch(
-      logOpsEvent({
-        companyId: order.companyId,
-        entityType: "order",
-        entityId: order.id,
-        entityNumber: order.number,
-        message: "Marked as paid",
-        actorId: user.id,
-        actorName: user.name,
-      }),
-    );
+    payOrder.mutate(order.id);
   };
 
   return (

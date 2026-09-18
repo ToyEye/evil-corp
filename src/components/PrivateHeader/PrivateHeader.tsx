@@ -15,9 +15,8 @@ import Typography from "@mui/material/Typography";
 import LogoutRoundedIcon from "@mui/icons-material/LogoutRounded";
 import ManageAccountsRoundedIcon from "@mui/icons-material/ManageAccountsRounded";
 
-import { selectUser, logout } from "../../store/auth/auth.slice";
-import { selectCompanies } from "../../store/companies/companies.slice";
-import { useAppDispatch } from "../../store/types";
+import { useCompaniesQuery, useLogout } from "../../hooks";
+import { selectUser } from "../../store/auth/auth.slice";
 import { COLORS } from "../../theme/COLORS";
 import { FitText } from "../common/FitText";
 import { NotificationBell } from "../Notifications/NotificationBell";
@@ -25,17 +24,18 @@ import { paths, routes } from "../../routing/routes";
 import { getInitials } from "../../utils/getInitials";
 
 export const PrivateHeader = () => {
-  const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const logout = useLogout();
   const user = useSelector(selectUser);
-  const companies = useSelector(selectCompanies);
+  const { data: companiesData } = useCompaniesQuery();
+  const companies = companiesData ?? [];
   const company = companies.find((item) => item.id === user?.companyId);
   const companyName = company?.name ?? user?.companyName ?? "";
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
 
   const handleLogout = () => {
     setMenuAnchor(null);
-    dispatch(logout());
+    logout();
     navigate(routes.Home, { replace: true });
   };
 
@@ -66,7 +66,14 @@ export const PrivateHeader = () => {
             gap: 2,
           }}
         >
-          <Box sx={{ mr: "auto", minWidth: 0, flex: 1, maxWidth: { xs: 160, sm: 280, md: 360 } }}>
+          <Box
+            sx={{
+              mr: "auto",
+              minWidth: 0,
+              flex: 1,
+              maxWidth: { xs: 160, sm: 280, md: 360 },
+            }}
+          >
             <FitText
               text={companyName}
               maxFontSize={16}
@@ -183,9 +190,15 @@ export const PrivateHeader = () => {
                   Account settings
                 </MenuItem>
                 <Divider />
-                <MenuItem onClick={handleLogout} sx={{ fontWeight: 600, color: COLORS.error[700] }}>
+                <MenuItem
+                  onClick={handleLogout}
+                  sx={{ fontWeight: 600, color: COLORS.error[700] }}
+                >
                   <ListItemIcon>
-                    <LogoutRoundedIcon fontSize="small" sx={{ color: COLORS.error[700] }} />
+                    <LogoutRoundedIcon
+                      fontSize="small"
+                      sx={{ color: COLORS.error[700] }}
+                    />
                   </ListItemIcon>
                   Logout
                 </MenuItem>

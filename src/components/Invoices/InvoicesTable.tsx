@@ -18,8 +18,8 @@ import {
 } from "@tanstack/react-table";
 
 import type { Invoice } from "../../data/invoices.schema";
+import { useInvoicesQuery } from "../../hooks";
 import { selectUser } from "../../store/auth/auth.slice";
-import type { RootState } from "../../store/types";
 import { COLORS } from "../../theme/COLORS";
 import { formatDateTime } from "../../utils/formatDateTime";
 import { formatMoney } from "../../utils/formatMoney";
@@ -70,7 +70,8 @@ const columns = columnHelper.columns([
 
 export const InvoicesTable = () => {
   const user = useSelector(selectUser);
-  const items = useSelector((state: RootState) => state.invoices.items);
+  const { data: itemsData } = useInvoicesQuery();
+  const items = itemsData ?? [];
   const companyItems = useMemo(
     () => items.filter((item) => item.companyId === user?.companyId),
     [items, user?.companyId],

@@ -4,23 +4,26 @@ import Typography from "@mui/material/Typography";
 
 import { PrivateLayout } from "../components/PrivateLayout/PrivateLayout";
 import { UsersTable } from "../components/UsersTable/UsersTable";
-import { isPlatformUser } from "../data/companies.dummy";
-import { getVisibleUsers } from "../data/users.dummy";
+import { useCompaniesQuery, useUsersQuery } from "../hooks";
 import { selectUser } from "../store/auth/auth.slice";
-import { selectCompanies } from "../store/companies/companies.slice";
-import { selectUsers } from "../store/users/users.slice";
+import {
+  getVisibleUsers,
+  isPlatformUser,
+} from "../utils/companyAccess";
 import { COLORS } from "../theme/COLORS";
 
 const Users = () => {
   const user = useSelector(selectUser);
-  const companies = useSelector(selectCompanies);
-  const allUsers = useSelector(selectUsers);
-  const visibleUsers = getVisibleUsers(user, allUsers);
+  const { data: companiesData } = useCompaniesQuery();
+  const { data: usersData } = useUsersQuery();
+  const companies = companiesData ?? [];
+  const allUsers = usersData ?? [];
+  const visibleUsers = getVisibleUsers(user, allUsers, companies);
   const companyName =
     companies.find((company) => company.id === user?.companyId)?.name ??
     user?.companyName ??
     "your company";
-  const subtitle = isPlatformUser(user)
+  const subtitle = isPlatformUser(user, companies)
     ? `${visibleUsers.length} people across all companies`
     : `${visibleUsers.length} people in ${companyName}`;
 

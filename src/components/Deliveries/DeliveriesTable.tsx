@@ -18,8 +18,8 @@ import {
 } from "@tanstack/react-table";
 
 import type { Delivery } from "../../data/deliveries.schema";
+import { useDeliveriesQuery } from "../../hooks";
 import { selectUser } from "../../store/auth/auth.slice";
-import { selectDeliveries } from "../../store/deliveries/deliveries.slice";
 import { COLORS } from "../../theme/COLORS";
 import { DeliveryDetailModal } from "./DeliveryDetailModal";
 import { DeliveryStatusChip } from "./DeliveryStatusChip";
@@ -110,7 +110,8 @@ const columns = columnHelper.columns([
 
 export const DeliveriesTable = () => {
   const user = useSelector(selectUser);
-  const items = useSelector(selectDeliveries);
+  const { data: itemsData } = useDeliveriesQuery();
+  const items = itemsData ?? [];
   const [detailItem, setDetailItem] = useState<Delivery | null>(null);
 
   const companyItems = useMemo(

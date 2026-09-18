@@ -12,21 +12,21 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import CloseIcon from "@mui/icons-material/Close";
 
-import { getDeliveryStatusFromSchedule, getDeliveryLoad, type DeliveryItem } from "../../data/deliveries.schema";
+import { getDeliveryLoad, type DeliveryItem } from "../../data/deliveries.schema";
 import { getVehicleRemainingUnits } from "../../data/fleet.utils";
 import { getOrderTotal, type Order } from "../../data/orders.schema";
-import { addClientAddress, selectClients } from "../../store/clients/clients.slice";
-import { addDelivery, selectDeliveries } from "../../store/deliveries/deliveries.slice";
+import {
+  useAddClientAddressMutation,
+  useClientsQuery,
+  useCreateDeliveryMutation,
+  useDeliveriesQuery,
+  useUsersQuery,
+  useVehiclesQuery,
+} from "../../hooks";
 import { selectUser } from "../../store/auth/auth.slice";
-import { logOpsEvent } from "../../store/ops/logOpsEvent";
-import { selectUsers } from "../../store/users/users.slice";
-import { selectVehicles } from "../../store/vehicles/vehicles.slice";
-import { useAppDispatch } from "../../store/types";
-import { paths } from "../../routing/routes";
 import { COLORS } from "../../theme/COLORS";
 import { formatMoney } from "../../utils/formatMoney";
 import { formFieldSx, submitButtonSx } from "../Forms/formStyles";
-import { nextDeliveryNumber } from "./deliveryForm.utils";
 
 type ScheduleDeliveryFormValues = {
   addressId: string;
@@ -50,12 +50,17 @@ const toIso = (value: string) => {
 };
 
 export const ScheduleDeliveryModal = ({ order, onClose }: ScheduleDeliveryModalProps) => {
-  const dispatch = useAppDispatch();
   const user = useSelector(selectUser);
-  const clients = useSelector(selectClients);
-  const users = useSelector(selectUsers);
-  const deliveries = useSelector(selectDeliveries);
-  const vehicles = useSelector(selectVehicles);
+  const { data: clientsData } = useClientsQuery();
+  const { data: usersData } = useUsersQuery();
+  const { data: deliveriesData } = useDeliveriesQuery();
+  const { data: vehiclesData } = useVehiclesQuery();
+  const addClientAddress = useAddClientAddressMutation();
+  const createDelivery = useCreateDeliveryMutation();
+  const clients = clientsData ?? [];
+  const users = usersData ?? [];
+  const deliveries = deliveriesData ?? [];
+  const vehicles = vehiclesData ?? [];
   const [newAddress, setNewAddress] = useState("");
   const [addressError, setAddressError] = useState<string>();
   const isOpen = Boolean(order);
@@ -123,14 +128,19 @@ export const ScheduleDeliveryModal = ({ order, onClose }: ScheduleDeliveryModalP
       return;
     }
 
-    const address = { id: crypto.randomUUID(), line };
-    dispatch(addClientAddress({ clientId: client.id, address }));
-    setValue("addressId", address.id);
+    addClientAddress.mutate(
+      { clientId: client.id, line },
+      {
+        onSuccess: (created) => {
+          setValue("addressId", created.id);
+        },
+      },
+    );
     setNewAddress("");
     setAddressError(undefined);
   };
 
-  const onSubmit: SubmitHandler<ScheduleDeliveryFormValues> = (values) => {
+  const onSubmit: SubmitHandler<ScheduleDeliveryFormValues> = async (values) => {
     if (!user || !order || !client) {
       return;
     }
@@ -150,64 +160,18 @@ export const ScheduleDeliveryModal = ({ order, onClose }: ScheduleDeliveryModalP
       return;
     }
 
-    const number = nextDeliveryNumber(deliveries, user.companyId);
-    const deliveryId = crypto.randomUUID();
-
-    dispatch(
-      addDelivery({
-        id: deliveryId,
-        number,
-        clientId: client.id,
-        clientName: client.name,
-        driverId: driver?.id,
-        driverName: driver?.name,
-        vehicleId: vehicle?.id,
-        vehicleName: vehicle ? `${vehicle.plate} · ${vehicle.name}` : undefined,
-        addressId: address?.id,
-        destination: address?.line,
-        lat: address?.lat,
-        lng: address?.lng,
-        deliverBy,
-        notes: order.notes,
-        status: getDeliveryStatusFromSchedule(undefined, deliverBy),
-        items,
-        reservesStock: false,
-        stockWrittenOff: false,
-        orderId: order.id,
-        orderNumber: order.number,
-        companyId: user.companyId,
-        companyName: user.companyName,
-        createdAt: new Date().toISOString(),
-      }),
-    );
-    dispatch(
-      logOpsEvent({
-        companyId: user.companyId,
-        entityType: "delivery",
-        entityId: deliveryId,
-        entityNumber: number,
-        message: driver ? `Scheduled for ${driver.name}` : "Delivery scheduled",
-        actorId: user.id,
-        actorName: user.name,
-        notify: driver
-          ? [
-              {
-                userId: driver.id,
-                title: "New trip assigned",
-                body: `${number} to ${client.name}`,
-                href: paths.deliveries(user.companyName),
-              },
-            ]
-          : [
-              {
-                role: "SEO",
-                title: "Delivery has no driver",
-                body: `${number} is scheduled without a driver`,
-                href: paths.deliveries(user.companyName),
-              },
-            ],
-      }),
-    );
+    await createDelivery.mutateAsync({
+      clientId: client.id,
+      orderId: order.id,
+      driverId: driver?.id,
+      vehicleId: vehicle?.id,
+      addressId: address?.id,
+      destination: address?.line,
+      deliverBy,
+      notes: order.notes,
+      lat: address?.lat,
+      lng: address?.lng,
+    });
     onClose();
   };
 

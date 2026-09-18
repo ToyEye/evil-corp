@@ -4,7 +4,6 @@ import { useSearchParams } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 
-import { getPlatformCompany, isPlatformUser } from "../data/companies.dummy";
 import {
   getThreadMessages,
   isThreadUnreadFor,
@@ -12,38 +11,47 @@ import {
 import { PrivateLayout } from "../components/PrivateLayout/PrivateLayout";
 import { SupportInboxList } from "../components/Support/SupportInboxList";
 import { SupportThreadView } from "../components/Support/SupportThreadView";
-import { selectUser } from "../store/auth/auth.slice";
-import { addNotification } from "../store/notifications/notifications.slice";
 import {
-  addSupportMessage,
-  ensureSupportThread,
-  markSupportThreadRead,
-  selectSupportMessages,
-  selectSupportThreads,
-} from "../store/support/support.slice";
-import { useAppDispatch } from "../store/types";
-import { paths } from "../routing/routes";
+  useEnsureSupportThreadMutation,
+  useMarkSupportThreadReadMutation,
+  useSendSupportMessageMutation,
+  useSupportMessagesQuery,
+  useSupportThreadsQuery,
+} from "../hooks";
+import { selectUser } from "../store/auth/auth.slice";
+import { isPlatformUser } from "../utils/companyAccess";
 import { COLORS } from "../theme/COLORS";
 
-const preview = (body: string) => (body.length > 90 ? `${body.slice(0, 87)}...` : body);
-
 const Support = () => {
-  const dispatch = useAppDispatch();
   const user = useSelector(selectUser);
-  const threads = useSelector(selectSupportThreads);
-  const messages = useSelector(selectSupportMessages);
+  const { data: threadsData } = useSupportThreadsQuery();
+  const threads = threadsData ?? [];
   const [searchParams, setSearchParams] = useSearchParams();
   const isAgent = Boolean(user && isPlatformUser(user));
-  const platform = getPlatformCompany();
+  const ensureThread = useEnsureSupportThreadMutation();
+  const sendMessage = useSendSupportMessageMutation();
+  const markRead = useMarkSupportThreadReadMutation();
 
   const myThread = useMemo(
     () => threads.find((item) => item.requesterId === user?.id) ?? null,
     [threads, user?.id],
   );
 
-  const selectedId = isAgent ? searchParams.get("thread") : myThread?.id ?? null;
-  const selectedThread = threads.find((item) => item.id === selectedId) ?? (!isAgent ? myThread : null);
-  const threadMessages = selectedThread ? getThreadMessages(messages, selectedThread.id) : [];
+  const selectedId = isAgent
+    ? searchParams.get("thread")
+    : (myThread?.id ?? null);
+  const selectedThread =
+    threads.find((item) => item.id === selectedId) ??
+    (!isAgent ? myThread : null);
+
+  const { data: messagesData } = useSupportMessagesQuery(selectedThread?.id);
+  const threadMessages = messagesData ?? [];
+
+  // For inbox unread badges, we only have selected thread messages loaded.
+  // Pass empty for agent inbox unread until per-thread fetch; list still works.
+  const inboxMessages = selectedThread
+    ? getThreadMessages(threadMessages, selectedThread.id)
+    : [];
 
   useEffect(() => {
     if (!selectedThread || !user) {
@@ -52,98 +60,41 @@ const Support = () => {
 
     const viewer = isAgent ? "support" : "requester";
 
-    if (!isThreadUnreadFor(selectedThread, messages, viewer)) {
+    if (!isThreadUnreadFor(selectedThread, threadMessages, viewer)) {
       return;
     }
 
-    dispatch(
-      markSupportThreadRead({
-        threadId: selectedThread.id,
-        as: viewer,
-        readAt: new Date().toISOString(),
-      }),
-    );
-  }, [dispatch, isAgent, messages, selectedThread, user]);
+    markRead.mutate({
+      threadId: selectedThread.id,
+      as: viewer,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only remount when thread/user changes
+  }, [isAgent, selectedThread?.id, user?.id, threadMessages.length]);
 
-  const handleSend = (body: string) => {
+  const handleSend = async (body: string) => {
     if (!user) {
       return;
     }
 
-    const createdAt = new Date().toISOString();
-    let thread =
-      selectedThread ??
-      threads.find((item) => item.requesterId === user.id) ??
-      null;
+    let threadId = selectedThread?.id;
 
-    if (!thread && !isAgent) {
-      thread = {
-        id: `support-${user.id}`,
-        companyId: user.companyId,
-        companyName: user.companyName,
-        requesterId: user.id,
-        requesterName: user.name,
-        requesterRole: user.role,
-        requesterLastReadAt: createdAt,
-        createdAt,
-        updatedAt: createdAt,
-      };
-      dispatch(ensureSupportThread(thread));
+    if (!threadId && !isAgent) {
+      const thread = await ensureThread.mutateAsync();
+      threadId = thread.id;
     }
 
-    if (!thread) {
+    if (!threadId) {
       return;
     }
 
-    dispatch(
-      addSupportMessage({
-        id: crypto.randomUUID(),
-        threadId: thread.id,
-        authorId: user.id,
-        authorName: user.name,
-        authorRole: user.role,
-        body,
-        createdAt,
-      }),
-    );
-    dispatch(
-      markSupportThreadRead({
-        threadId: thread.id,
-        as: isAgent ? "support" : "requester",
-        readAt: createdAt,
-      }),
-    );
+    await sendMessage.mutateAsync({ threadId, body });
+    await markRead.mutateAsync({
+      threadId,
+      as: isAgent ? "support" : "requester",
+    });
 
     if (isAgent) {
-      dispatch(
-        addNotification({
-          id: crypto.randomUUID(),
-          companyId: thread.companyId,
-          recipientUserId: thread.requesterId,
-          title: "Support replied",
-          body: preview(body),
-          href: paths.support(thread.companyName),
-          read: false,
-          createdAt,
-        }),
-      );
-    } else {
-      dispatch(
-        addNotification({
-          id: crypto.randomUUID(),
-          companyId: platform.id,
-          recipientRole: "Support",
-          title: `Support: ${user.companyName}`,
-          body: `${user.name}: ${preview(body)}`,
-          href: `${paths.support(platform.name)}?thread=${thread.id}`,
-          read: false,
-          createdAt,
-        }),
-      );
-    }
-
-    if (isAgent) {
-      setSearchParams({ thread: thread.id });
+      setSearchParams({ thread: threadId });
     }
   };
 
@@ -151,7 +102,10 @@ const Support = () => {
     <PrivateLayout>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
         <Box>
-          <Typography variant="h5" sx={{ fontWeight: 700, color: COLORS.text.primary, mb: 0.5 }}>
+          <Typography
+            variant="h5"
+            sx={{ fontWeight: 700, color: COLORS.text.primary, mb: 0.5 }}
+          >
             Support
           </Typography>
           <Typography variant="body2" sx={{ color: COLORS.text.secondary }}>
@@ -165,14 +119,17 @@ const Support = () => {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "minmax(260px, 320px) 1fr" },
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "minmax(260px, 320px) 1fr",
+              },
               gap: 2,
               alignItems: "stretch",
             }}
           >
             <SupportInboxList
               threads={threads}
-              messages={messages}
+              messages={inboxMessages}
               selectedId={selectedThread?.id ?? null}
               onSelect={(threadId) => setSearchParams({ thread: threadId })}
             />

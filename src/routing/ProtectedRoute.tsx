@@ -1,8 +1,8 @@
 import { Navigate, Outlet, useLocation, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 
-import { getCompanyNameForUser } from "../data/users.dummy";
 import { selectIsAuthenticated, selectUser } from "../store/auth/auth.slice";
+import { getCompanyNameForUser } from "../utils/companyAccess";
 import { paths, routes, toCompanySlug } from "./routes";
 
 export const ProtectedRoute = () => {
@@ -22,8 +22,11 @@ export const ProtectedRoute = () => {
   }
 
   if (companyName && companyName !== userCompanySlug) {
-    const suffix = location.pathname.replace(`/${companyName}`, "") || "/dashboard";
-    return <Navigate to={`/${userCompanySlug}${suffix}${location.search}`} replace />;
+    const suffix =
+      location.pathname.replace(`/${companyName}`, "") || "/dashboard";
+    return (
+      <Navigate to={`/${userCompanySlug}${suffix}${location.search}`} replace />
+    );
   }
 
   return <Outlet />;

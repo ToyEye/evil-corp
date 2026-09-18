@@ -25,16 +25,14 @@ import {
   getRestockPurposeLabel,
   type RestockRequest,
 } from "../../data/restock.schema";
-import { selectUser } from "../../store/auth/auth.slice";
 import {
-  adjustInventoryQuantity,
-  selectInventoryItems,
-} from "../../store/inventory/inventory.slice";
-import { reserveOrderItems, selectOrders } from "../../store/orders/orders.slice";
-import { addRestockRequest, selectRestockRequests, updateRestockStatus } from "../../store/restock/restock.slice";
-import { logOpsEvent } from "../../store/ops/logOpsEvent";
-import { paths } from "../../routing/routes";
-import { useAppDispatch } from "../../store/types";
+  useAdvanceRestockMutation,
+  useCreateRestockMutation,
+  useInventoryQuery,
+  useOrdersQuery,
+  useRestockQuery,
+} from "../../hooks";
+import { selectUser } from "../../store/auth/auth.slice";
 import { COLORS } from "../../theme/COLORS";
 import { RestockDetailModal } from "./RestockDetailModal";
 import { RestockStatusChip } from "./RestockStatusChip";
@@ -125,11 +123,15 @@ type RestockRequestsTableProps = {
 };
 
 export const RestockRequestsTable = ({ title, description, incomingOnly }: RestockRequestsTableProps) => {
-  const dispatch = useAppDispatch();
   const user = useSelector(selectUser);
-  const items = useSelector(selectRestockRequests);
-  const orders = useSelector(selectOrders);
-  const inventory = useSelector(selectInventoryItems);
+  const { data: restockData } = useRestockQuery();
+  const { data: ordersData } = useOrdersQuery();
+  const { data: inventoryData } = useInventoryQuery();
+  const createRestock = useCreateRestockMutation();
+  const advanceRestock = useAdvanceRestockMutation();
+  const items = restockData ?? [];
+  const orders = ordersData ?? [];
+  const inventory = inventoryData ?? [];
   const [detailItem, setDetailItem] = useState<RestockRequest | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const canCreate = user?.role === "Supply" && !incomingOnly;
@@ -188,25 +190,13 @@ export const RestockRequestsTable = ({ title, description, incomingOnly }: Resto
       ? findOrderByNote(note, orders, user.companyId)
       : undefined;
 
-    dispatch(
-      addRestockRequest({
-        id: crypto.randomUUID(),
-        productId: product.id,
-        sku: product.sku,
-        productName: product.name,
-        quantity: values.quantity,
-        note,
-        status: "New",
-        purposes: values.purposes,
-        orderId: matchedOrder?.id,
-        orderNumber: matchedOrder?.number,
-        requestedById: user.id,
-        requestedByName: user.name,
-        companyId: user.companyId,
-        companyName: user.companyName,
-        createdAt: new Date().toISOString(),
-      }),
-    );
+    createRestock.mutate({
+      productId: product.id,
+      quantity: values.quantity,
+      note,
+      purposes: values.purposes,
+      orderId: matchedOrder?.id,
+    });
     setIsCreateOpen(false);
   };
 
@@ -233,87 +223,7 @@ export const RestockRequestsTable = ({ title, description, incomingOnly }: Resto
       return;
     }
 
-    dispatch(updateRestockStatus({ id: request.id, status: nextStatus }));
-
-    if (nextStatus === "Delivered") {
-      dispatch(
-        logOpsEvent({
-          companyId: request.companyId,
-          entityType: "restock",
-          entityId: request.id,
-          entityNumber: request.sku,
-          message: "Supplier delivery arrived at the dock",
-          actorId: user.id,
-          actorName: user.name,
-          notify: [
-            {
-              role: "Storekeeper",
-              title: "Goods waiting at the dock",
-              body: `${request.productName} is ready to receive`,
-              href: paths.warehouse(user.companyName),
-            },
-          ],
-        }),
-      );
-      return;
-    }
-
-    if (nextStatus !== "Received") {
-      dispatch(
-        logOpsEvent({
-          companyId: request.companyId,
-          entityType: "restock",
-          entityId: request.id,
-          entityNumber: request.sku,
-          message: `Restock marked as ${nextStatus}`,
-          actorId: user.id,
-          actorName: user.name,
-        }),
-      );
-      return;
-    }
-
-    dispatch(adjustInventoryQuantity({ id: request.productId, delta: request.quantity }));
-
-    if (request.purposes.includes("order") && request.orderId) {
-      const order = orders.find((item) => item.id === request.orderId);
-      const line = order?.items.find((item) => item.productId === request.productId);
-      const remaining = line ? Math.max(0, line.quantity - line.reservedQuantity) : 0;
-      const toReserve = Math.min(request.quantity, remaining);
-
-      if (toReserve > 0) {
-        dispatch(
-          reserveOrderItems({
-            orderId: request.orderId,
-            productId: request.productId,
-            quantity: toReserve,
-          }),
-        );
-        dispatch(adjustInventoryQuantity({ id: request.productId, delta: -toReserve }));
-      }
-    }
-
-    dispatch(
-      logOpsEvent({
-        companyId: request.companyId,
-        entityType: "restock",
-        entityId: request.id,
-        entityNumber: request.sku,
-        message: "Received into warehouse",
-        actorId: user.id,
-        actorName: user.name,
-        notify: request.orderNumber
-          ? [
-              {
-                role: "Staff",
-                title: "Stock received for an order",
-                body: `${request.productName} can now cover ${request.orderNumber}`,
-                href: paths.orders(user.companyName),
-              },
-            ]
-          : undefined,
-      }),
-    );
+    advanceRestock.mutate(request.id);
   };
 
   return (

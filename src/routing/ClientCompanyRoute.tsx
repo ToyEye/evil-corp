@@ -1,9 +1,11 @@
 import { Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 
-import { isPlatformUser } from "../data/companies.dummy";
-import { getCompanyNameForUser } from "../data/users.dummy";
 import { selectUser } from "../store/auth/auth.slice";
+import {
+  getCompanyNameForUser,
+  isPlatformUser,
+} from "../utils/companyAccess";
 import { paths, routes } from "./routes";
 
 type ClientCompanyRouteProps = {
@@ -18,7 +20,9 @@ export const ClientCompanyRoute = ({ children }: ClientCompanyRouteProps) => {
   }
 
   if (isPlatformUser(user)) {
-    return <Navigate to={paths.dashboard(getCompanyNameForUser(user))} replace />;
+    return (
+      <Navigate to={paths.dashboard(getCompanyNameForUser(user))} replace />
+    );
   }
 
   return children;

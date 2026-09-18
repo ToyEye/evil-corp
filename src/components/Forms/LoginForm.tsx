@@ -1,16 +1,13 @@
 import { useForm, type SubmitHandler } from "react-hook-form";
-import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 
-import { dummyUsers } from "../../data/users.dummy";
+import { getApiErrorMessage } from "../../api/http";
+import { useLoginMutation } from "../../hooks";
 import { paths } from "../../routing/routes";
-import { setPreviewUser } from "../../store/auth/auth.slice";
-import { selectCompanies } from "../../store/companies/companies.slice";
-import { useAppDispatch } from "../../store/types";
 import { COLORS } from "../../theme/COLORS";
 import { formFieldSx, submitButtonSx } from "./formStyles";
 import { PasswordField } from "./PasswordField";
@@ -21,9 +18,8 @@ type LoginInputs = {
 };
 
 export const LoginForm = () => {
-  const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const companies = useSelector(selectCompanies);
+  const loginMutation = useLoginMutation();
   const {
     register,
     handleSubmit,
@@ -31,26 +27,19 @@ export const LoginForm = () => {
     formState: { errors, isSubmitting },
   } = useForm<LoginInputs>();
 
-  const onSubmit: SubmitHandler<LoginInputs> = (data) => {
-    const matched = dummyUsers.find(
-      (user) => user.email.toLowerCase() === data.email.trim().toLowerCase(),
-    );
-
-    if (!matched) {
-      setError("email", { message: "No account found for this email" });
-      return;
+  const onSubmit: SubmitHandler<LoginInputs> = async (data) => {
+    try {
+      const result = await loginMutation.mutateAsync({
+        email: data.email.trim(),
+        password: data.password,
+      });
+      const companyName = result.user.companyName;
+      navigate(paths.dashboard(companyName), { replace: true });
+    } catch (error) {
+      setError("email", {
+        message: getApiErrorMessage(error, "Login failed"),
+      });
     }
-
-    const company = companies.find((item) => item.id === matched.companyId);
-    const companyName = company?.name ?? matched.companyName;
-
-    dispatch(
-      setPreviewUser({
-        ...matched,
-        companyName,
-      }),
-    );
-    navigate(paths.dashboard(companyName), { replace: true });
   };
 
   return (
@@ -103,7 +92,7 @@ export const LoginForm = () => {
       <Button
         type="submit"
         variant="contained"
-        disabled={isSubmitting}
+        disabled={isSubmitting || loginMutation.isPending}
         fullWidth
         sx={submitButtonSx}
       >

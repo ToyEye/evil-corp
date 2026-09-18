@@ -18,16 +18,13 @@ import {
 } from "@tanstack/react-table";
 
 import type { InventoryItem } from "../../data/inventory.schema";
-import { selectUser } from "../../store/auth/auth.slice";
 import {
-  addInventoryItem,
-  selectInventoryItems,
-  updateInventoryItem,
-} from "../../store/inventory/inventory.slice";
-import { addRestockRequest } from "../../store/restock/restock.slice";
-import { logOpsEvent } from "../../store/ops/logOpsEvent";
-import { paths } from "../../routing/routes";
-import { useAppDispatch } from "../../store/types";
+  useCreateInventoryItemMutation,
+  useCreateRestockMutation,
+  useInventoryQuery,
+  useUpdateInventoryItemMutation,
+} from "../../hooks";
+import { selectUser } from "../../store/auth/auth.slice";
 import { COLORS } from "../../theme/COLORS";
 import { formatMoney } from "../../utils/formatMoney";
 import { getStockLevel } from "../../theme/stockLevel";
@@ -91,9 +88,12 @@ const toFormValues = (item: InventoryItem): ProductFormValues => ({
 });
 
 export const WarehouseTable = () => {
-  const dispatch = useAppDispatch();
   const user = useSelector(selectUser);
-  const items = useSelector(selectInventoryItems);
+  const { data: itemsData } = useInventoryQuery();
+  const createItem = useCreateInventoryItemMutation();
+  const updateItem = useUpdateInventoryItemMutation();
+  const createRestock = useCreateRestockMutation();
+  const items = itemsData ?? [];
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [detailItem, setDetailItem] = useState<InventoryItem | null>(null);
   const [editItem, setEditItem] = useState<InventoryItem | null>(null);
@@ -140,21 +140,15 @@ export const WarehouseTable = () => {
       return;
     }
 
-    dispatch(
-      addInventoryItem({
-        id: crypto.randomUUID(),
-        sku: values.sku.trim(),
-        name: values.name.trim(),
-        description: values.description.trim(),
-        quantity: values.quantity,
-        price: values.price,
-        category: values.category,
-        zone: values.zone,
-        bin: values.bin.trim(),
-        companyId: user.companyId,
-        companyName: user.companyName,
-      }),
-    );
+    createItem.mutate({
+      sku: values.sku.trim(),
+      name: values.name.trim(),
+      description: values.description.trim(),
+      quantity: values.quantity,
+      price: values.price,
+      category: values.category,
+      bin: values.bin.trim(),
+    });
     setSkuError(undefined);
     setIsAddOpen(false);
   };
@@ -164,18 +158,15 @@ export const WarehouseTable = () => {
       return;
     }
 
-    dispatch(
-      updateInventoryItem({
-        ...editItem,
-        name: values.name.trim(),
-        description: values.description.trim(),
-        quantity: values.quantity,
-        price: values.price,
-        category: values.category,
-        zone: values.zone,
-        bin: values.bin.trim(),
-      }),
-    );
+    updateItem.mutate({
+      id: editItem.id,
+      name: values.name.trim(),
+      description: values.description.trim(),
+      quantity: values.quantity,
+      price: values.price,
+      category: values.category,
+      bin: values.bin.trim(),
+    });
     setEditItem(null);
   };
 
@@ -184,44 +175,12 @@ export const WarehouseTable = () => {
       return;
     }
 
-    const requestId = crypto.randomUUID();
-
-    dispatch(
-      addRestockRequest({
-        id: requestId,
-        productId: restockItem.id,
-        sku: restockItem.sku,
-        productName: restockItem.name,
-        quantity: values.quantity,
-        note: values.note.trim(),
-        status: "New",
-        purposes: ["warehouse"],
-        requestedById: user.id,
-        requestedByName: user.name,
-        companyId: user.companyId,
-        companyName: user.companyName,
-        createdAt: new Date().toISOString(),
-      }),
-    );
-    dispatch(
-      logOpsEvent({
-        companyId: user.companyId,
-        entityType: "restock",
-        entityId: requestId,
-        entityNumber: restockItem.sku,
-        message: "Restock requested",
-        actorId: user.id,
-        actorName: user.name,
-        notify: [
-          {
-            role: "Supply",
-            title: "New restock request",
-            body: `${restockItem.name} × ${values.quantity}`,
-            href: paths.suppliersRequests(user.companyName),
-          },
-        ],
-      }),
-    );
+    createRestock.mutate({
+      productId: restockItem.id,
+      quantity: values.quantity,
+      note: values.note.trim(),
+      purposes: ["warehouse"],
+    });
     setRestockItem(null);
   };
 

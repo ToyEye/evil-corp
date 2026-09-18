@@ -20,25 +20,22 @@ import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import PlaylistAddOutlinedIcon from "@mui/icons-material/PlaylistAddOutlined";
 
 import { getOrderTotal } from "../../data/orders.schema";
-import { getCompanyNameForUser } from "../../data/users.dummy";
+import {
+  useAddClientAddressMutation,
+  useClientsQuery,
+  useCreateOrderMutation,
+  useCreateRestockMutation,
+  useInventoryQuery,
+} from "../../hooks";
 import { paths } from "../../routing/routes";
 import { selectUser } from "../../store/auth/auth.slice";
-import { addClientAddress, selectClients } from "../../store/clients/clients.slice";
-import {
-  adjustInventoryQuantity,
-  selectInventoryItems,
-} from "../../store/inventory/inventory.slice";
-import { addOrder, selectOrders } from "../../store/orders/orders.slice";
-import { logOpsEvent } from "../../store/ops/logOpsEvent";
-import { addRestockRequest } from "../../store/restock/restock.slice";
-import { useAppDispatch } from "../../store/types";
+import { getCompanyNameForUser } from "../../utils/companyAccess";
 import { COLORS } from "../../theme/COLORS";
 import { formatMoney } from "../../utils/formatMoney";
 import { formFieldSx, submitButtonSx } from "../Forms/formStyles";
 import { OrderRestockPanel } from "./OrderRestockPanel";
 import {
   getShortageSignature,
-  nextOrderNumber,
   splitOrderLines,
   type SplitOrderLine,
 } from "./orderForm.utils";
@@ -58,12 +55,15 @@ const emptyValues: OrderFormValues = {
 };
 
 export const CreateOrderForm = () => {
-  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const user = useSelector(selectUser);
-  const clients = useSelector(selectClients);
-  const inventory = useSelector(selectInventoryItems);
-  const orders = useSelector(selectOrders);
+  const { data: clientsData } = useClientsQuery();
+  const { data: inventoryData } = useInventoryQuery();
+  const addClientAddress = useAddClientAddressMutation();
+  const createOrder = useCreateOrderMutation();
+  const createRestock = useCreateRestockMutation();
+  const clients = clientsData ?? [];
+  const inventory = inventoryData ?? [];
   const [newAddress, setNewAddress] = useState("");
   const [addressError, setAddressError] = useState<string>();
   const [restockOpen, setRestockOpen] = useState(false);
@@ -236,9 +236,14 @@ export const CreateOrderForm = () => {
       return;
     }
 
-    const address = { id: crypto.randomUUID(), line };
-    dispatch(addClientAddress({ clientId: selectedClient.id, address }));
-    setValue("addressId", address.id);
+    addClientAddress.mutate(
+      { clientId: selectedClient.id, line },
+      {
+        onSuccess: (created) => {
+          setValue("addressId", created.id);
+        },
+      },
+    );
     setNewAddress("");
     setAddressError(undefined);
   };
@@ -286,7 +291,7 @@ export const CreateOrderForm = () => {
     setSentShortageSignature(getShortageSignature(restockDraft));
   };
 
-  const onSubmit: SubmitHandler<OrderFormValues> = (values) => {
+  const onSubmit: SubmitHandler<OrderFormValues> = async (values) => {
     if (!user || !restockCovered) {
       return;
     }
@@ -299,90 +304,32 @@ export const CreateOrderForm = () => {
       return;
     }
 
-    const orderId = crypto.randomUUID();
-    const number = nextOrderNumber(orders, user.companyId);
-    const notes = values.notes.trim();
-    const createdAt = new Date().toISOString();
-
-    dispatch(
-      addOrder({
-        id: orderId,
-        number,
-        clientId: client.id,
-        clientName: client.name,
-        addressId: address?.id,
-        destination: address?.line,
-        notes,
-        status: "New",
-        fulfillmentStatus: "Waiting",
-        items: split.items,
-        companyId: user.companyId,
-        companyName: user.companyName,
-        createdAt,
-      }),
-    );
-
-    for (const line of split.items) {
-      if (line.reservedQuantity > 0) {
-        dispatch(adjustInventoryQuantity({ id: line.productId, delta: -line.reservedQuantity }));
-      }
-    }
+    const order = await createOrder.mutateAsync({
+      clientId: client.id,
+      addressId: address?.id,
+      destination: address?.line,
+      notes: values.notes.trim(),
+      items: values.items
+        .filter((item) => item.productId && item.quantity > 0)
+        .map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        })),
+    });
 
     for (const item of split.backorder) {
-      dispatch(
-        addRestockRequest({
-          id: crypto.randomUUID(),
-          productId: item.productId,
-          sku: item.sku,
-          productName: item.name,
-          quantity: item.quantity,
-          note:
-            restockNote.trim() ||
-            (selectedClient ? `Shortage for order ${number} to ${selectedClient.name}` : number),
-          status: "New",
-          purposes: ["order"],
-          orderId,
-          orderNumber: number,
-          requestedById: user.id,
-          requestedByName: user.name,
-          companyId: user.companyId,
-          companyName: user.companyName,
-          createdAt,
-        }),
-      );
+      await createRestock.mutateAsync({
+        productId: item.productId,
+        quantity: item.quantity,
+        note:
+          restockNote.trim() ||
+          (selectedClient
+            ? `Shortage for order ${order.number} to ${selectedClient.name}`
+            : order.number),
+        purposes: ["order"],
+        orderId: order.id,
+      });
     }
-
-    dispatch(
-      logOpsEvent({
-        companyId: user.companyId,
-        entityType: "order",
-        entityId: orderId,
-        entityNumber: number,
-        message:
-          split.backorder.length > 0
-            ? "Order created with a stock shortage"
-            : "Order created",
-        actorId: user.id,
-        actorName: user.name,
-        notify:
-          split.backorder.length > 0
-            ? [
-                {
-                  role: "Supply",
-                  title: "Shortage on a new order",
-                  body: `${number} needs restock before it can ship`,
-                  href: paths.suppliersRequests(user.companyName),
-                },
-                {
-                  role: "Storekeeper",
-                  title: "Order waiting for stock",
-                  body: `${number} is not fully reserved`,
-                  href: paths.warehouse(user.companyName),
-                },
-              ]
-            : undefined,
-      }),
-    );
 
     navigate(paths.orders(getCompanyNameForUser(user)));
   };

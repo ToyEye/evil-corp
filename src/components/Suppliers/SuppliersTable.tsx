@@ -19,13 +19,12 @@ import {
 } from "@tanstack/react-table";
 
 import type { Supplier } from "../../data/suppliers.schema";
-import { selectUser } from "../../store/auth/auth.slice";
 import {
-  addSupplier,
-  selectSuppliers,
-  updateSupplier,
-} from "../../store/suppliers/suppliers.slice";
-import { useAppDispatch } from "../../store/types";
+  useCreateSupplierMutation,
+  useSuppliersQuery,
+  useUpdateSupplierMutation,
+} from "../../hooks";
+import { selectUser } from "../../store/auth/auth.slice";
 import { COLORS } from "../../theme/COLORS";
 import { SupplierDetailModal } from "./SupplierDetailModal";
 import { SupplierFormModal, type SupplierFormValues } from "./SupplierFormModal";
@@ -70,9 +69,11 @@ const columns = columnHelper.columns([
 ]);
 
 export const SuppliersTable = () => {
-  const dispatch = useAppDispatch();
   const user = useSelector(selectUser);
-  const items = useSelector(selectSuppliers);
+  const { data: itemsData } = useSuppliersQuery();
+  const createSupplier = useCreateSupplierMutation();
+  const updateSupplierMutation = useUpdateSupplierMutation();
+  const items = itemsData ?? [];
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [detailItem, setDetailItem] = useState<Supplier | null>(null);
   const [nameError, setNameError] = useState<string>();
@@ -117,19 +118,13 @@ export const SuppliersTable = () => {
       return;
     }
 
-    dispatch(
-      addSupplier({
-        id: crypto.randomUUID(),
-        name: values.name.trim(),
-        type: values.type,
-        addedAt: values.addedAt,
-        description: values.description.trim(),
-        doesNotSupply: values.doesNotSupply.trim(),
-        notes: values.notes.trim(),
-        companyId: user.companyId,
-        companyName: user.companyName,
-      }),
-    );
+    createSupplier.mutate({
+      name: values.name.trim(),
+      type: values.type,
+      description: values.description.trim(),
+      doesNotSupply: values.doesNotSupply.trim(),
+      notes: values.notes.trim(),
+    });
     setNameError(undefined);
     setIsAddOpen(false);
   };
@@ -144,7 +139,17 @@ export const SuppliersTable = () => {
       return false;
     }
 
-    const nextSupplier: Supplier = {
+    updateSupplierMutation.mutate({
+      id: detailItem.id,
+      name: values.name.trim(),
+      type: values.type,
+      addedAt: values.addedAt,
+      description: values.description.trim(),
+      doesNotSupply: values.doesNotSupply.trim(),
+      notes: values.notes.trim(),
+    });
+    setNameError(undefined);
+    setDetailItem({
       ...detailItem,
       name: values.name.trim(),
       type: values.type,
@@ -152,11 +157,7 @@ export const SuppliersTable = () => {
       description: values.description.trim(),
       doesNotSupply: values.doesNotSupply.trim(),
       notes: values.notes.trim(),
-    };
-
-    dispatch(updateSupplier(nextSupplier));
-    setNameError(undefined);
-    setDetailItem(nextSupplier);
+    });
     return true;
   };
 

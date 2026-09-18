@@ -10,13 +10,15 @@ import Typography from "@mui/material/Typography";
 
 import { isDeliveryTerminal } from "../../data/deliveries.schema";
 import { getOrderTotal } from "../../data/orders.schema";
+import {
+  useClientsQuery,
+  useDeliveriesQuery,
+  useOrdersQuery,
+  useRestockQuery,
+  useSuppliersQuery,
+  useUsersQuery,
+} from "../../hooks";
 import { selectUser } from "../../store/auth/auth.slice";
-import { selectClients } from "../../store/clients/clients.slice";
-import { selectDeliveries } from "../../store/deliveries/deliveries.slice";
-import { selectOrders } from "../../store/orders/orders.slice";
-import { selectRestockRequests } from "../../store/restock/restock.slice";
-import { selectSuppliers } from "../../store/suppliers/suppliers.slice";
-import { selectUsers } from "../../store/users/users.slice";
 import { COLORS } from "../../theme/COLORS";
 import { formatMoney } from "../../utils/formatMoney";
 import { DashboardStatCard } from "./DashboardStatCard";
@@ -29,12 +31,18 @@ type ClientDashboardProps = {
 
 export const ClientDashboard = ({ companyId, companyName }: ClientDashboardProps) => {
   const user = useSelector(selectUser);
-  const users = useSelector(selectUsers);
-  const clients = useSelector(selectClients);
-  const orders = useSelector(selectOrders);
-  const deliveries = useSelector(selectDeliveries);
-  const suppliers = useSelector(selectSuppliers);
-  const restockRequests = useSelector(selectRestockRequests);
+  const { data: usersData } = useUsersQuery();
+  const { data: clientsData } = useClientsQuery();
+  const { data: ordersData } = useOrdersQuery();
+  const { data: deliveriesData } = useDeliveriesQuery();
+  const { data: suppliersData } = useSuppliersQuery();
+  const { data: restockData } = useRestockQuery();
+  const users = usersData ?? [];
+  const clients = clientsData ?? [];
+  const orders = ordersData ?? [];
+  const deliveries = deliveriesData ?? [];
+  const suppliers = suppliersData ?? [];
+  const restockRequests = restockData ?? [];
 
   const employeeCount = users.filter((item) => item.companyId === companyId).length;
   const clientCount = clients.filter((item) => item.companyId === companyId).length;

@@ -1,4 +1,5 @@
-import { dummyCompanies, getPlatformCompany, isPlatformUser } from "./companies.dummy";
+import { dummyCompanies } from "./companies.dummy";
+import { isPlatformCompanyId } from "../utils/companyAccess";
 import { USER_ROLES, usersSchema, type User, type UserRole } from "./users.schema";
 
 export { dummyCompanies } from "./companies.dummy";
@@ -178,7 +179,12 @@ const dummyUsersData: User[] = [
 
 export const dummyUsers = usersSchema.parse(dummyUsersData);
 
-const platformCompany = getPlatformCompany();
+const platformCompany = dummyCompanies.find((company) => company.type === "platform");
+
+if (!platformCompany) {
+  throw new Error("Platform company is missing");
+}
+
 const adminCompanyIds = new Set(
   dummyUsers.filter((user) => user.role === "Admin").map((user) => user.companyId),
 );
@@ -198,7 +204,7 @@ export const getVisibleUsers = (
     return [];
   }
 
-  if (isPlatformUser(user)) {
+  if (isPlatformCompanyId(dummyCompanies, user.companyId)) {
     return allUsers;
   }
 

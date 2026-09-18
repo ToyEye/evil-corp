@@ -10,21 +10,22 @@ import MenuItem from "@mui/material/MenuItem";
 import Typography from "@mui/material/Typography";
 import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined";
 
-import { selectUser } from "../../store/auth/auth.slice";
 import {
-  markAllNotificationsRead,
-  markNotificationRead,
-} from "../../store/notifications/notifications.slice";
-import type { RootState } from "../../store/types";
-import { useAppDispatch } from "../../store/types";
+  useMarkAllNotificationsReadMutation,
+  useMarkNotificationReadMutation,
+  useNotificationsQuery,
+} from "../../hooks";
+import { selectUser } from "../../store/auth/auth.slice";
 import { COLORS } from "../../theme/COLORS";
 import { formatDateTime } from "../../utils/formatDateTime";
 
 export const NotificationBell = () => {
-  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const user = useSelector(selectUser);
-  const items = useSelector((state: RootState) => state.notifications.items);
+  const { data: itemsData } = useNotificationsQuery();
+  const markRead = useMarkNotificationReadMutation();
+  const markAllRead = useMarkAllNotificationsReadMutation();
+  const items = itemsData ?? [];
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
 
   const mine = useMemo(() => {
@@ -53,7 +54,10 @@ export const NotificationBell = () => {
         sx={{
           color: COLORS.text.secondary,
           backgroundColor: COLORS.background.subtle,
-          "&:hover": { backgroundColor: COLORS.primary[50], color: COLORS.primary[700] },
+          "&:hover": {
+            backgroundColor: COLORS.primary[50],
+            color: COLORS.primary[700],
+          },
         }}
       >
         <Badge badgeContent={unread} color="error">
@@ -79,19 +83,21 @@ export const NotificationBell = () => {
           },
         }}
       >
-        <Box sx={{ px: 2, py: 1.25, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Typography sx={{ fontWeight: 700, color: COLORS.text.primary }}>Notifications</Typography>
+        <Box
+          sx={{
+            px: 2,
+            py: 1.25,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Typography sx={{ fontWeight: 700, color: COLORS.text.primary }}>
+            Notifications
+          </Typography>
           {unread > 0 ? (
             <Button
-              onClick={() =>
-                dispatch(
-                  markAllNotificationsRead({
-                    companyId: user.companyId,
-                    userId: user.id,
-                    role: user.role,
-                  }),
-                )
-              }
+              onClick={() => markAllRead.mutate()}
               sx={{ textTransform: "none", fontWeight: 600 }}
             >
               Mark all read
@@ -107,7 +113,7 @@ export const NotificationBell = () => {
             <MenuItem
               key={item.id}
               onClick={() => {
-                dispatch(markNotificationRead(item.id));
+                markRead.mutate(item.id);
                 setAnchor(null);
 
                 if (item.href) {
@@ -118,15 +124,27 @@ export const NotificationBell = () => {
                 alignItems: "flex-start",
                 whiteSpace: "normal",
                 py: 1.25,
-                backgroundColor: item.read ? "transparent" : COLORS.primary[50],
+                backgroundColor: item.read
+                  ? "transparent"
+                  : COLORS.primary[50],
               }}
             >
               <Box>
-                <Typography sx={{ fontWeight: 700, color: COLORS.text.primary }}>{item.title}</Typography>
-                <Typography variant="body2" sx={{ color: COLORS.text.secondary }}>
+                <Typography
+                  sx={{ fontWeight: 700, color: COLORS.text.primary }}
+                >
+                  {item.title}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{ color: COLORS.text.secondary }}
+                >
                   {item.body}
                 </Typography>
-                <Typography variant="caption" sx={{ color: COLORS.text.tertiary }}>
+                <Typography
+                  variant="caption"
+                  sx={{ color: COLORS.text.tertiary }}
+                >
                   {formatDateTime(item.createdAt)}
                 </Typography>
               </Box>

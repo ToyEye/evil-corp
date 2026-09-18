@@ -20,23 +20,18 @@ import {
   type FailureReason,
 } from "../../data/deliveries.schema";
 import { getVehicleRemainingUnits } from "../../data/fleet.utils";
-import { selectUser } from "../../store/auth/auth.slice";
-import { addClientAddress, selectClients } from "../../store/clients/clients.slice";
 import {
-  selectDeliveries,
-  updateDeliveryAddress,
-  updateDeliveryDriver,
-  updateDeliverySchedule,
-  updateDeliveryVehicle,
-} from "../../store/deliveries/deliveries.slice";
-import { progressDelivery } from "../../store/deliveries/progressDelivery";
-import { logOpsEvent } from "../../store/ops/logOpsEvent";
-import { selectUsers } from "../../store/users/users.slice";
-import { selectVehicles } from "../../store/vehicles/vehicles.slice";
-import { useAppDispatch } from "../../store/types";
+  useAddClientAddressMutation,
+  useAssignDeliveryMutation,
+  useClientsQuery,
+  useDeliveriesQuery,
+  useProgressDeliveryMutation,
+  useUsersQuery,
+  useVehiclesQuery,
+} from "../../hooks";
+import { selectUser } from "../../store/auth/auth.slice";
 import { COLORS } from "../../theme/COLORS";
 import { formatDateTime } from "../../utils/formatDateTime";
-import { paths } from "../../routing/routes";
 import { formFieldSx } from "../Forms/formStyles";
 import { ActivityTimeline } from "../Activity/ActivityTimeline";
 import { DeliveryStatusChip } from "./DeliveryStatusChip";
@@ -92,12 +87,18 @@ const DetailBlock = ({ label, value }: { label: string; value: string }) => (
 );
 
 export const DeliveryDetailModal = ({ delivery, onClose }: DeliveryDetailModalProps) => {
-  const dispatch = useAppDispatch();
   const user = useSelector(selectUser);
-  const clients = useSelector(selectClients);
-  const users = useSelector(selectUsers);
-  const vehicles = useSelector(selectVehicles);
-  const deliveries = useSelector(selectDeliveries);
+  const { data: clientsData } = useClientsQuery();
+  const { data: usersData } = useUsersQuery();
+  const { data: vehiclesData } = useVehiclesQuery();
+  const { data: deliveriesData } = useDeliveriesQuery();
+  const assignDelivery = useAssignDeliveryMutation();
+  const progressDeliveryMutation = useProgressDeliveryMutation();
+  const addClientAddress = useAddClientAddressMutation();
+  const clients = clientsData ?? [];
+  const users = usersData ?? [];
+  const vehicles = vehiclesData ?? [];
+  const deliveries = deliveriesData ?? [];
   const client = clients.find((item) => item.id === delivery?.clientId);
   const canManage = user?.role === "Staff";
   const isDriver = user?.role === "Driver" && user.id === delivery?.driverId;
@@ -147,28 +148,11 @@ export const DeliveryDetailModal = ({ delivery, onClose }: DeliveryDetailModalPr
       return false;
     }
 
-    dispatch(
-      updateDeliverySchedule({
-        id: delivery.id,
-        deliverBy: nextDeliverBy,
-      }),
-    );
+    assignDelivery.mutate({
+      id: delivery.id,
+      deliverBy: nextDeliverBy,
+    });
     setScheduleError(undefined);
-
-    if (user && nextDeliverBy !== delivery.deliverBy) {
-      dispatch(
-        logOpsEvent({
-          companyId: delivery.companyId,
-          entityType: "delivery",
-          entityId: delivery.id,
-          entityNumber: delivery.number,
-          message: "Planned delivery date updated",
-          actorId: user.id,
-          actorName: user.name,
-        }),
-      );
-    }
-
     return true;
   };
 
@@ -183,26 +167,11 @@ export const DeliveryDetailModal = ({ delivery, onClose }: DeliveryDetailModalPr
       return;
     }
 
-    dispatch(
-      updateDeliveryAddress({
-        id: delivery.id,
-        addressId: address.id,
-        destination: address.line,
-        lat: address.lat,
-        lng: address.lng,
-      }),
-    );
-    dispatch(
-      logOpsEvent({
-        companyId: delivery.companyId,
-        entityType: "delivery",
-        entityId: delivery.id,
-        entityNumber: delivery.number,
-        message: `Destination changed to ${address.line}`,
-        actorId: user.id,
-        actorName: user.name,
-      }),
-    );
+    assignDelivery.mutate({
+      id: delivery.id,
+      addressId: address.id,
+      destination: address.line,
+    });
   };
 
   const handleAddAddress = () => {
@@ -218,31 +187,20 @@ export const DeliveryDetailModal = ({ delivery, onClose }: DeliveryDetailModalPr
       return;
     }
 
-    const address = { id: crypto.randomUUID(), line };
-    dispatch(addClientAddress({ clientId: client.id, address }));
-    dispatch(
-      updateDeliveryAddress({
-        id: delivery.id,
-        addressId: address.id,
-        destination: address.line,
-      }),
+    addClientAddress.mutate(
+      { clientId: client.id, line },
+      {
+        onSuccess: (created) => {
+          assignDelivery.mutate({
+            id: delivery.id,
+            addressId: created.id,
+            destination: created.line,
+          });
+        },
+      },
     );
     setNewAddress("");
     setAddressError(undefined);
-
-    if (user) {
-      dispatch(
-        logOpsEvent({
-          companyId: delivery.companyId,
-          entityType: "delivery",
-          entityId: delivery.id,
-          entityNumber: delivery.number,
-          message: `Destination changed to ${address.line}`,
-          actorId: user.id,
-          actorName: user.name,
-        }),
-      );
-    }
   };
 
   const handleStatus = (
@@ -257,14 +215,12 @@ export const DeliveryDetailModal = ({ delivery, onClose }: DeliveryDetailModalPr
       return;
     }
 
-    dispatch(
-      progressDelivery({
-        deliveryId: delivery.id,
-        status,
-        proof: extras?.proof,
-        failureReason: extras?.failureReason,
-      }),
-    );
+    progressDeliveryMutation.mutate({
+      id: delivery.id,
+      status,
+      proof: extras?.proof,
+      failureReason: extras?.failureReason,
+    });
     setProofMode(null);
   };
 
@@ -275,35 +231,10 @@ export const DeliveryDetailModal = ({ delivery, onClose }: DeliveryDetailModalPr
 
     const driver = drivers.find((item) => item.id === driverId);
 
-    dispatch(
-      updateDeliveryDriver({
-        id: delivery.id,
-        driverId: driver?.id,
-        driverName: driver?.name,
-      }),
-    );
-
-    if (driver) {
-      dispatch(
-        logOpsEvent({
-          companyId: delivery.companyId,
-          entityType: "delivery",
-          entityId: delivery.id,
-          entityNumber: delivery.number,
-          message: `Assigned to ${driver.name}`,
-          actorId: user.id,
-          actorName: user.name,
-          notify: [
-            {
-              userId: driver.id,
-              title: "New trip assigned",
-              body: `${delivery.number} to ${delivery.clientName}`,
-              href: paths.deliveries(user.companyName),
-            },
-          ],
-        }),
-      );
-    }
+    assignDelivery.mutate({
+      id: delivery.id,
+      driverId: driver?.id ?? null,
+    });
   };
 
   const handleVehicleChange = (vehicleId: string) => {
@@ -321,27 +252,10 @@ export const DeliveryDetailModal = ({ delivery, onClose }: DeliveryDetailModalPr
       return;
     }
 
-    dispatch(
-      updateDeliveryVehicle({
-        id: delivery.id,
-        vehicleId: vehicle?.id,
-        vehicleName: vehicle ? `${vehicle.plate} · ${vehicle.name}` : undefined,
-      }),
-    );
-
-    if (vehicle) {
-      dispatch(
-        logOpsEvent({
-          companyId: delivery.companyId,
-          entityType: "delivery",
-          entityId: delivery.id,
-          entityNumber: delivery.number,
-          message: `Assigned vehicle ${vehicle.plate}`,
-          actorId: user.id,
-          actorName: user.name,
-        }),
-      );
-    }
+    assignDelivery.mutate({
+      id: delivery.id,
+      vehicleId: vehicle?.id ?? null,
+    });
   };
 
   return (

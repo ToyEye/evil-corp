@@ -6,7 +6,7 @@ import Typography from "@mui/material/Typography";
 
 import { OrdersTable } from "../components/Orders/OrdersTable";
 import { PrivateLayout } from "../components/PrivateLayout/PrivateLayout";
-import { getCompanyNameForUser } from "../data/users.dummy";
+import { getCompanyNameForUser } from "../utils/companyAccess";
 import { paths } from "../routing/routes";
 import { selectUser } from "../store/auth/auth.slice";
 import { COLORS } from "../theme/COLORS";

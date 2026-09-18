@@ -24,17 +24,20 @@ import {
   useTable,
 } from "@tanstack/react-table";
 
+import { USER_ROLES, type User, type UserRole } from "../../data/users.schema";
+import {
+  useCompaniesQuery,
+  useCreateUserMutation,
+  useUpdateUserRoleMutation,
+  useUsersQuery,
+} from "../../hooks";
+import { selectUser } from "../../store/auth/auth.slice";
 import {
   canAssignCompanyRoles,
   getAssignableMemberRoles,
+  getVisibleUsers,
   isPlatformUser,
-} from "../../data/companies.dummy";
-import { getVisibleUsers } from "../../data/users.dummy";
-import { USER_ROLES, type User, type UserRole } from "../../data/users.schema";
-import { selectUser } from "../../store/auth/auth.slice";
-import { selectCompanies } from "../../store/companies/companies.slice";
-import { selectUsers, addUser, updateUserRole } from "../../store/users/users.slice";
-import { useAppDispatch } from "../../store/types";
+} from "../../utils/companyAccess";
 import { formFieldSx } from "../Forms/formStyles";
 import { COLORS } from "../../theme/COLORS";
 import { UserFormModal, type UserFormValues } from "./UserFormModal";
@@ -59,8 +62,14 @@ const RoleChip = ({ role }: { role: UserRole }) => (
   />
 );
 
-const UserRoleCell = ({ user }: { user: User }) => {
-  const dispatch = useAppDispatch();
+const UserRoleCell = ({
+  user,
+  companyType,
+}: {
+  user: User;
+  companyType: string;
+}) => {
+  const updateRole = useUpdateUserRoleMutation();
   const currentUser = useSelector(selectUser);
   const canEdit =
     canAssignCompanyRoles(currentUser?.role) &&
@@ -73,7 +82,7 @@ const UserRoleCell = ({ user }: { user: User }) => {
     return <RoleChip role={user.role} />;
   }
 
-  const roles = getAssignableMemberRoles(user.companyId);
+  const roles = getAssignableMemberRoles(companyType);
   const options = roles.includes(user.role) ? roles : [user.role, ...roles];
 
   return (
@@ -82,12 +91,10 @@ const UserRoleCell = ({ user }: { user: User }) => {
       size="small"
       value={user.role}
       onChange={(event) =>
-        dispatch(
-          updateUserRole({
-            id: user.id,
-            role: event.target.value as UserRole,
-          }),
-        )
+        updateRole.mutate({
+          id: user.id,
+          role: event.target.value as UserRole,
+        })
       }
       sx={{ ...formFieldSx, minWidth: 160 }}
       slotProps={{
@@ -105,61 +112,84 @@ const UserRoleCell = ({ user }: { user: User }) => {
   );
 };
 
-const columns = columnHelper.columns([
-  columnHelper.accessor("name", {
-    header: "Name",
-    filterFn: filterFn_includesString,
-    cell: (info) => (
-      <Typography sx={{ fontWeight: 600, color: COLORS.text.primary }}>
-        {info.getValue()}
-      </Typography>
-    ),
-  }),
-  columnHelper.accessor("email", {
-    header: "Email",
-    enableColumnFilter: false,
-    cell: (info) => (
-      <Typography sx={{ color: COLORS.text.secondary }}>{info.getValue()}</Typography>
-    ),
-  }),
-  columnHelper.accessor("role", {
-    header: "Role",
-    filterFn: filterFn_includesString,
-    cell: (info) => <UserRoleCell user={info.row.original} />,
-  }),
-  columnHelper.accessor("companyName", {
-    header: "Company",
-    filterFn: filterFn_includesString,
-    cell: (info) => (
-      <Typography sx={{ color: COLORS.text.secondary }}>{info.getValue()}</Typography>
-    ),
-  }),
-]);
-
 const roleOptions = [...USER_ROLES];
 
 const getStringFilterValue = (value: unknown) =>
   typeof value === "string" ? value : "";
 
 export const UsersTable = () => {
-  const dispatch = useAppDispatch();
   const user = useSelector(selectUser);
-  const companies = useSelector(selectCompanies);
-  const allUsers = useSelector(selectUsers);
-  const canViewAllUsers = isPlatformUser(user);
+  const { data: companiesData } = useCompaniesQuery();
+  const { data: usersData } = useUsersQuery();
+  const createUser = useCreateUserMutation();
+  const companies = companiesData ?? [];
+  const allUsers = usersData ?? [];
+  const canViewAllUsers = isPlatformUser(user, companies);
   const canManage = canAssignCompanyRoles(user?.role);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [emailError, setEmailError] = useState<string>();
   const companyOptions = companies.map((company) => company.name);
+  const companyTypeById = useMemo(
+    () => new Map(companies.map((company) => [company.id, company.type])),
+    [companies],
+  );
   const users = useMemo(
     () =>
-      getVisibleUsers(user, allUsers).map((item) => ({
+      getVisibleUsers(user, allUsers, companies).map((item) => ({
         ...item,
         companyName:
-          companies.find((company) => company.id === item.companyId)?.name ?? item.companyName,
+          companies.find((company) => company.id === item.companyId)?.name ??
+          item.companyName,
       })),
     [allUsers, companies, user],
   );
+
+  const columns = useMemo(
+    () =>
+      columnHelper.columns([
+        columnHelper.accessor("name", {
+          header: "Name",
+          filterFn: filterFn_includesString,
+          cell: (info) => (
+            <Typography sx={{ fontWeight: 600, color: COLORS.text.primary }}>
+              {info.getValue()}
+            </Typography>
+          ),
+        }),
+        columnHelper.accessor("email", {
+          header: "Email",
+          enableColumnFilter: false,
+          cell: (info) => (
+            <Typography sx={{ color: COLORS.text.secondary }}>
+              {info.getValue()}
+            </Typography>
+          ),
+        }),
+        columnHelper.accessor("role", {
+          header: "Role",
+          filterFn: filterFn_includesString,
+          cell: (info) => (
+            <UserRoleCell
+              user={info.row.original}
+              companyType={
+                companyTypeById.get(info.row.original.companyId) ?? "client"
+              }
+            />
+          ),
+        }),
+        columnHelper.accessor("companyName", {
+          header: "Company",
+          filterFn: filterFn_includesString,
+          cell: (info) => (
+            <Typography sx={{ color: COLORS.text.secondary }}>
+              {info.getValue()}
+            </Typography>
+          ),
+        }),
+      ]),
+    [companyTypeById],
+  );
+
   const table = useTable({
     features: usersTableFeatures,
     columns,
@@ -173,12 +203,17 @@ export const UsersTable = () => {
   const rows = table.getRowModel().rows;
   const hasActiveFilters = table.state.columnFilters.length > 0;
 
-  const handleAdd = (values: UserFormValues) => {
+  const handleAdd = async (values: UserFormValues) => {
     if (!user) {
       return;
     }
 
-    if (allUsers.some((item) => item.email.toLowerCase() === values.email.trim().toLowerCase())) {
+    if (
+      allUsers.some(
+        (item) =>
+          item.email.toLowerCase() === values.email.trim().toLowerCase(),
+      )
+    ) {
       setEmailError("This email is already in use");
       return;
     }
@@ -191,193 +226,226 @@ export const UsersTable = () => {
       return;
     }
 
-    dispatch(
-      addUser({
-        id: crypto.randomUUID(),
+    try {
+      await createUser.mutateAsync({
         name: values.name.trim(),
         email: values.email.trim(),
+        password: values.password,
         role: values.role,
         companyId: company.id,
-        companyName: company.name,
-      }),
-    );
-    setEmailError(undefined);
-    setIsAddOpen(false);
+      });
+      setEmailError(undefined);
+      setIsAddOpen(false);
+    } catch {
+      setEmailError("Failed to create user");
+    }
   };
 
   return (
     <>
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      {canManage ? (
-        <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-          <Button
-            variant="contained"
-            onClick={() => {
-              setEmailError(undefined);
-              setIsAddOpen(true);
-            }}
-            sx={{
-              px: 2.5,
-              py: 1.1,
-              borderRadius: "10px",
-              textTransform: "none",
-              fontWeight: 600,
-              backgroundColor: COLORS.primary[600],
-              boxShadow: `0 4px 14px ${COLORS.ui.shadowStrong}`,
-              "&:hover": { backgroundColor: COLORS.primary[700] },
-            }}
-          >
-            Add personnel
-          </Button>
-        </Box>
-      ) : null}
-
-    <Box
-      sx={{
-        borderRadius: "16px",
-        border: `1px solid ${COLORS.border.default}`,
-        backgroundColor: COLORS.background.surface,
-        boxShadow: `0 8px 24px ${COLORS.ui.shadow}`,
-        overflow: "hidden",
-      }}
-    >
-      <Box
-        sx={{
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "flex-end",
-          gap: 2,
-          p: 2.5,
-          borderBottom: `1px solid ${COLORS.border.light}`,
-        }}
-      >
-        <TextField
-          size="small"
-          label="Search name"
-          placeholder="Search by name"
-          value={getStringFilterValue(nameColumn?.getFilterValue())}
-          onChange={(event) => nameColumn?.setFilterValue(event.target.value)}
-          sx={{ ...formFieldSx, minWidth: 220, flex: 1 }}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchRoundedIcon sx={{ color: COLORS.text.muted, fontSize: 20 }} />
-                </InputAdornment>
-              ),
-            },
-          }}
-        />
-
-        {canViewAllUsers ? (
-          <Autocomplete
-            size="small"
-            freeSolo
-            options={companyOptions}
-            value={getStringFilterValue(companyColumn?.getFilterValue())}
-            inputValue={getStringFilterValue(companyColumn?.getFilterValue())}
-            onInputChange={(_, value) => companyColumn?.setFilterValue(value || undefined)}
-            sx={{ minWidth: 240, flex: 1 }}
-            renderInput={(params) => (
-              <TextField {...params} label="Company" placeholder="Search company" sx={formFieldSx} />
-            )}
-          />
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {canManage ? (
+          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+            <Button
+              variant="contained"
+              onClick={() => {
+                setEmailError(undefined);
+                setIsAddOpen(true);
+              }}
+              sx={{
+                px: 2.5,
+                py: 1.1,
+                borderRadius: "10px",
+                textTransform: "none",
+                fontWeight: 600,
+                backgroundColor: COLORS.primary[600],
+                boxShadow: `0 4px 14px ${COLORS.ui.shadowStrong}`,
+                "&:hover": { backgroundColor: COLORS.primary[700] },
+              }}
+            >
+              Add personnel
+            </Button>
+          </Box>
         ) : null}
 
-        <Autocomplete
-          size="small"
-          freeSolo
-          options={roleOptions}
-          value={getStringFilterValue(roleColumn?.getFilterValue())}
-          inputValue={getStringFilterValue(roleColumn?.getFilterValue())}
-          onInputChange={(_, value) => roleColumn?.setFilterValue(value || undefined)}
-          sx={{ minWidth: 200, flex: 1 }}
-          renderInput={(params) => (
-            <TextField {...params} label="Role" placeholder="Search role" sx={formFieldSx} />
-          )}
-        />
-
-        <Button
-          variant="outlined"
-          disabled={!hasActiveFilters}
-          onClick={() => table.resetColumnFilters(true)}
+        <Box
           sx={{
-            height: 40,
-            borderRadius: "10px",
-            textTransform: "none",
-            fontWeight: 600,
-            color: COLORS.text.secondary,
-            borderColor: COLORS.border.default,
-            "&:hover": {
-              borderColor: COLORS.border.strong,
-              backgroundColor: COLORS.background.subtle,
-            },
+            borderRadius: "16px",
+            border: `1px solid ${COLORS.border.default}`,
+            backgroundColor: COLORS.background.surface,
+            boxShadow: `0 8px 24px ${COLORS.ui.shadow}`,
+            overflow: "hidden",
           }}
         >
-          Clear
-        </Button>
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "flex-end",
+              gap: 2,
+              p: 2.5,
+              borderBottom: `1px solid ${COLORS.border.light}`,
+            }}
+          >
+            <TextField
+              size="small"
+              label="Search name"
+              placeholder="Search by name"
+              value={getStringFilterValue(nameColumn?.getFilterValue())}
+              onChange={(event) =>
+                nameColumn?.setFilterValue(event.target.value)
+              }
+              sx={{ ...formFieldSx, minWidth: 220, flex: 1 }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchRoundedIcon
+                        sx={{ color: COLORS.text.muted, fontSize: 20 }}
+                      />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
 
-        <Typography variant="body2" sx={{ flex: "1 0 100%", color: COLORS.text.tertiary }}>
-          Showing {rows.length} of {users.length} users
-        </Typography>
-      </Box>
+            {canViewAllUsers ? (
+              <Autocomplete
+                size="small"
+                freeSolo
+                options={companyOptions}
+                value={getStringFilterValue(companyColumn?.getFilterValue())}
+                inputValue={getStringFilterValue(
+                  companyColumn?.getFilterValue(),
+                )}
+                onInputChange={(_, value) =>
+                  companyColumn?.setFilterValue(value || undefined)
+                }
+                sx={{ minWidth: 240, flex: 1 }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Company"
+                    placeholder="Search company"
+                    sx={formFieldSx}
+                  />
+                )}
+              />
+            ) : null}
 
-      <TableContainer>
-        <Table>
-          <TableHead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} sx={{ backgroundColor: COLORS.background.subtle }}>
-                {headerGroup.headers.map((header) => (
-                  <TableCell
-                    key={header.id}
-                    sx={{
-                      fontWeight: 700,
-                      color: COLORS.text.tertiary,
-                      fontSize: "0.75rem",
-                      letterSpacing: "0.04em",
-                      textTransform: "uppercase",
-                      borderBottomColor: COLORS.border.default,
-                    }}
+            <Autocomplete
+              size="small"
+              freeSolo
+              options={roleOptions}
+              value={getStringFilterValue(roleColumn?.getFilterValue())}
+              inputValue={getStringFilterValue(roleColumn?.getFilterValue())}
+              onInputChange={(_, value) =>
+                roleColumn?.setFilterValue(value || undefined)
+              }
+              sx={{ minWidth: 200, flex: 1 }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Role"
+                  placeholder="Search role"
+                  sx={formFieldSx}
+                />
+              )}
+            />
+
+            <Button
+              variant="outlined"
+              disabled={!hasActiveFilters}
+              onClick={() => table.resetColumnFilters(true)}
+              sx={{
+                height: 40,
+                borderRadius: "10px",
+                textTransform: "none",
+                fontWeight: 600,
+                color: COLORS.text.secondary,
+                borderColor: COLORS.border.default,
+                "&:hover": {
+                  borderColor: COLORS.border.strong,
+                  backgroundColor: COLORS.background.subtle,
+                },
+              }}
+            >
+              Clear
+            </Button>
+
+            <Typography
+              variant="body2"
+              sx={{ flex: "1 0 100%", color: COLORS.text.tertiary }}
+            >
+              Showing {rows.length} of {users.length} users
+            </Typography>
+          </Box>
+
+          <TableContainer>
+            <Table>
+              <TableHead>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow
+                    key={headerGroup.id}
+                    sx={{ backgroundColor: COLORS.background.subtle }}
                   >
-                    {header.isPlaceholder ? null : <table.FlexRender header={header} />}
-                  </TableCell>
+                    {headerGroup.headers.map((header) => (
+                      <TableCell
+                        key={header.id}
+                        sx={{
+                          fontWeight: 700,
+                          color: COLORS.text.tertiary,
+                          fontSize: "0.75rem",
+                          letterSpacing: "0.04em",
+                          textTransform: "uppercase",
+                          borderBottomColor: COLORS.border.default,
+                        }}
+                      >
+                        {header.isPlaceholder ? null : (
+                          <table.FlexRender header={header} />
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
                 ))}
-              </TableRow>
-            ))}
-          </TableHead>
-          <TableBody>
-            {rows.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  sx={{ py: 6, textAlign: "center", color: COLORS.text.muted }}
-                >
-                  No users match the current filters
-                </TableCell>
-              </TableRow>
-            ) : (
-              rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  hover
-                  sx={{
-                    "&:last-of-type td": { borderBottom: 0 },
-                    "& td": { borderBottomColor: COLORS.border.light },
-                  }}
-                >
-                  {row.getAllCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      <table.FlexRender cell={cell} />
+              </TableHead>
+              <TableBody>
+                {rows.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length}
+                      sx={{
+                        py: 6,
+                        textAlign: "center",
+                        color: COLORS.text.muted,
+                      }}
+                    >
+                      No users match the current filters
                     </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Box>
-    </Box>
+                  </TableRow>
+                ) : (
+                  rows.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      hover
+                      sx={{
+                        "&:last-of-type td": { borderBottom: 0 },
+                        "& td": { borderBottomColor: COLORS.border.light },
+                      }}
+                    >
+                      {row.getAllCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          <table.FlexRender cell={cell} />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
+      </Box>
 
       <UserFormModal
         isOpen={isAddOpen}

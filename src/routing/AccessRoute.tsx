@@ -1,12 +1,15 @@
 import { Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
+import CircularProgress from "@mui/material/CircularProgress";
+import Box from "@mui/material/Box";
 
 import { hasAccess } from "../components/Aside/aside.utils";
 import { appPages } from "../data/permissions.dummy";
 import type { AppPageId } from "../data/permissions.schema";
-import { getCompanyNameForUser } from "../data/users.dummy";
+import { usePermissionsQuery } from "../hooks";
 import { selectUser } from "../store/auth/auth.slice";
-import { selectPageAccess } from "../store/permissions/permissions.slice";
+import { getCompanyNameForUser } from "../utils/companyAccess";
+import { EMPTY_PAGE_ACCESS } from "./supportAccess";
 import { paths, routes } from "./routes";
 
 const pagePaths = {
@@ -29,17 +32,27 @@ type AccessRouteProps = {
 
 export const AccessRoute = ({ pageId, children }: AccessRouteProps) => {
   const user = useSelector(selectUser);
-  const pageAccess = useSelector(selectPageAccess);
+  const { data: permissions, isLoading } = usePermissionsQuery();
+  const pageAccess = permissions?.pageAccess ?? EMPTY_PAGE_ACCESS;
+  const pages = permissions?.pages ?? appPages;
 
   if (!user) {
     return <Navigate to={routes.Home} replace />;
+  }
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+        <CircularProgress size={28} />
+      </Box>
+    );
   }
 
   if (hasAccess(pageAccess[pageId], user.role)) {
     return children;
   }
 
-  const fallback = appPages.find(
+  const fallback = pages.find(
     (page) => page.id !== pageId && hasAccess(pageAccess[page.id], user.role),
   );
 
@@ -48,6 +61,9 @@ export const AccessRoute = ({ pageId, children }: AccessRouteProps) => {
   }
 
   return (
-    <Navigate to={pagePaths[fallback.id](getCompanyNameForUser(user))} replace />
+    <Navigate
+      to={pagePaths[fallback.id](getCompanyNameForUser(user))}
+      replace
+    />
   );
 };

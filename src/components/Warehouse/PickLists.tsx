@@ -6,26 +6,27 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 
 import { isOrderFullyPicked, type Order } from "../../data/orders.schema";
-import { paths } from "../../routing/routes";
-import { selectUser } from "../../store/auth/auth.slice";
-import { selectInventoryItems } from "../../store/inventory/inventory.slice";
 import {
-  completePicking,
-  selectOrders,
-  setPickedQuantity,
-  startPicking,
-} from "../../store/orders/orders.slice";
-import { logOpsEvent } from "../../store/ops/logOpsEvent";
-import { useAppDispatch } from "../../store/types";
+  useCompletePickingMutation,
+  useInventoryQuery,
+  useOrdersQuery,
+  useSetPickedQuantityMutation,
+  useStartPickingMutation,
+} from "../../hooks";
+import { selectUser } from "../../store/auth/auth.slice";
 import { COLORS } from "../../theme/COLORS";
 import { formFieldSx } from "../Forms/formStyles";
 import { FulfillmentStatusChip } from "../Orders/FulfillmentStatusChip";
 
 export const PickLists = () => {
-  const dispatch = useAppDispatch();
   const user = useSelector(selectUser);
-  const orders = useSelector(selectOrders);
-  const inventory = useSelector(selectInventoryItems);
+  const { data: ordersData } = useOrdersQuery();
+  const { data: inventoryData } = useInventoryQuery();
+  const startPicking = useStartPickingMutation();
+  const setPickedQuantity = useSetPickedQuantityMutation();
+  const completePicking = useCompletePickingMutation();
+  const orders = ordersData ?? [];
+  const inventory = inventoryData ?? [];
   const canPick = user?.role === "Storekeeper";
 
   const pickOrders = useMemo(() => {
@@ -55,56 +56,13 @@ export const PickLists = () => {
     return product ? `${product.zone} · ${product.bin}` : "—";
   };
 
-  const handleStart = (order: Order) => {
-    if (!user) {
-      return;
-    }
-
-    dispatch(startPicking({ id: order.id }));
-    dispatch(
-      logOpsEvent({
-        companyId: order.companyId,
-        entityType: "order",
-        entityId: order.id,
-        entityNumber: order.number,
-        message: "Picking started",
-        actorId: user.id,
-        actorName: user.name,
-      }),
-    );
-  };
-
-  const handleComplete = (order: Order) => {
-    if (!user) {
-      return;
-    }
-
-    dispatch(completePicking({ id: order.id }));
-    dispatch(
-      logOpsEvent({
-        companyId: order.companyId,
-        entityType: "order",
-        entityId: order.id,
-        entityNumber: order.number,
-        message: "Picked and packed, ready to ship",
-        actorId: user.id,
-        actorName: user.name,
-        notify: [
-          {
-            role: "Staff",
-            title: "Order ready to ship",
-            body: `${order.number} is packed and can be scheduled`,
-            href: paths.deliveries(user.companyName),
-          },
-        ],
-      }),
-    );
-  };
-
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
       <Box>
-        <Typography variant="h6" sx={{ fontWeight: 700, color: COLORS.text.primary }}>
+        <Typography
+          variant="h6"
+          sx={{ fontWeight: 700, color: COLORS.text.primary }}
+        >
           Pick lists
         </Typography>
         <Typography variant="body2" sx={{ color: COLORS.text.secondary }}>
@@ -140,12 +98,24 @@ export const PickLists = () => {
               gap: 1.25,
             }}
           >
-            <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, alignItems: "flex-start" }}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 1,
+                alignItems: "flex-start",
+              }}
+            >
               <Box>
-                <Typography sx={{ fontWeight: 700, color: COLORS.text.primary }}>
+                <Typography
+                  sx={{ fontWeight: 700, color: COLORS.text.primary }}
+                >
                   {order.number}
                 </Typography>
-                <Typography variant="body2" sx={{ color: COLORS.text.secondary }}>
+                <Typography
+                  variant="body2"
+                  sx={{ color: COLORS.text.secondary }}
+                >
                   {order.clientName}
                 </Typography>
               </Box>
@@ -164,12 +134,18 @@ export const PickLists = () => {
                 }}
               >
                 <Box>
-                  <Typography variant="body2" sx={{ color: COLORS.text.primary }}>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: COLORS.text.primary }}
+                  >
                     {item.quantity} × {item.name}
                   </Typography>
-                  <Typography variant="body2" sx={{ color: COLORS.text.tertiary }}>
-                    {item.sku} · {locationFor(item.productId)} · reserved {item.reservedQuantity}/
-                    {item.quantity}
+                  <Typography
+                    variant="body2"
+                    sx={{ color: COLORS.text.tertiary }}
+                  >
+                    {item.sku} · {locationFor(item.productId)} · reserved{" "}
+                    {item.reservedQuantity}/{item.quantity}
                   </Typography>
                 </Box>
                 {canPick && order.fulfillmentStatus === "Picking" ? (
@@ -178,19 +154,20 @@ export const PickLists = () => {
                     type="number"
                     value={item.pickedQuantity}
                     onChange={(event) =>
-                      dispatch(
-                        setPickedQuantity({
-                          orderId: order.id,
-                          productId: item.productId,
-                          quantity: Number(event.target.value),
-                        }),
-                      )
+                      setPickedQuantity.mutate({
+                        id: order.id,
+                        productId: item.productId,
+                        quantity: Number(event.target.value),
+                      })
                     }
                     sx={{ ...formFieldSx, width: 112 }}
                     slotProps={{ htmlInput: { min: 0, max: item.quantity } }}
                   />
                 ) : (
-                  <Typography variant="body2" sx={{ color: COLORS.text.secondary }}>
+                  <Typography
+                    variant="body2"
+                    sx={{ color: COLORS.text.secondary }}
+                  >
                     Picked {item.pickedQuantity}/{item.quantity}
                   </Typography>
                 )}
@@ -200,7 +177,7 @@ export const PickLists = () => {
             {canPick && order.fulfillmentStatus === "Reserved" ? (
               <Button
                 variant="contained"
-                onClick={() => handleStart(order)}
+                onClick={() => startPicking.mutate(order.id)}
                 sx={{
                   alignSelf: "flex-start",
                   textTransform: "none",
@@ -218,7 +195,7 @@ export const PickLists = () => {
               <Button
                 variant="contained"
                 disabled={!isOrderFullyPicked(order)}
-                onClick={() => handleComplete(order)}
+                onClick={() => completePicking.mutate(order.id)}
                 sx={{
                   alignSelf: "flex-start",
                   textTransform: "none",

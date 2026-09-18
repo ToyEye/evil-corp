@@ -4,15 +4,16 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 
-import { dummyCompanies } from "../../data/companies.dummy";
 import {
   getDeliveryLoad,
   isDeliveryTerminal,
 } from "../../data/deliveries.schema";
+import {
+  useCompaniesQuery,
+  useDeliveriesQuery,
+  useRoutesQuery,
+} from "../../hooks";
 import { selectUser } from "../../store/auth/auth.slice";
-import { selectCompanies } from "../../store/companies/companies.slice";
-import { selectDeliveries } from "../../store/deliveries/deliveries.slice";
-import { selectDispatchRoutes } from "../../store/routes/routes.slice";
 import { COLORS, LIGHT_COLORS } from "../../theme/COLORS";
 import { DeliveryStatusChip } from "./DeliveryStatusChip";
 import { BuildRouteModal } from "./BuildRouteModal";
@@ -28,13 +29,16 @@ const ROUTE_COLORS = [
 
 export const DispatchBoard = () => {
   const user = useSelector(selectUser);
-  const companies = useSelector(selectCompanies);
-  const deliveries = useSelector(selectDeliveries);
-  const routes = useSelector(selectDispatchRoutes);
+  const { data: companiesData } = useCompaniesQuery();
+  const companies = companiesData ?? [];
+  const { data: deliveriesData } = useDeliveriesQuery();
+  const deliveries = deliveriesData ?? [];
+  const { data: routesData } = useRoutesQuery();
+  const routes = routesData ?? [];
   const [isBuildOpen, setIsBuildOpen] = useState(false);
   const canBuild = user?.role === "Staff";
   const company = companies.find((item) => item.id === user?.companyId);
-  const seededCompany = dummyCompanies.find((item) => item.id === user?.companyId);
+  const seededCompany = companies.find((item) => item.id === user?.companyId);
   const depotLat = company?.depotLat ?? seededCompany?.depotLat;
   const depotLng = company?.depotLng ?? seededCompany?.depotLng;
   const depot =

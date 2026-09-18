@@ -22,16 +22,15 @@ import {
 } from "../../data/deliveries.schema";
 import { getVehicleRemainingUnits } from "../../data/fleet.utils";
 import { selectUser } from "../../store/auth/auth.slice";
-import { assignRouteStops, selectDeliveries } from "../../store/deliveries/deliveries.slice";
-import { logOpsEvent } from "../../store/ops/logOpsEvent";
-import { addDispatchRoute, selectDispatchRoutes } from "../../store/routes/routes.slice";
-import { selectUsers } from "../../store/users/users.slice";
-import { selectVehicles } from "../../store/vehicles/vehicles.slice";
-import { useAppDispatch } from "../../store/types";
-import { paths } from "../../routing/routes";
+import {
+  useAssignRouteStopsMutation,
+  useCreateRouteMutation,
+  useDeliveriesQuery,
+  useUsersQuery,
+  useVehiclesQuery,
+} from "../../hooks";
 import { COLORS } from "../../theme/COLORS";
 import { formFieldSx, submitButtonSx } from "../Forms/formStyles";
-import { nextRouteNumber } from "./routeForm.utils";
 
 type BuildRouteModalProps = {
   isOpen: boolean;
@@ -52,12 +51,15 @@ const moveItem = (ids: string[], index: number, direction: -1 | 1) => {
 };
 
 export const BuildRouteModal = ({ isOpen, onClose }: BuildRouteModalProps) => {
-  const dispatch = useAppDispatch();
   const user = useSelector(selectUser);
-  const users = useSelector(selectUsers);
-  const vehicles = useSelector(selectVehicles);
-  const deliveries = useSelector(selectDeliveries);
-  const routes = useSelector(selectDispatchRoutes);
+  const { data: usersData } = useUsersQuery();
+  const { data: vehiclesData } = useVehiclesQuery();
+  const { data: deliveriesData } = useDeliveriesQuery();
+  const createRoute = useCreateRouteMutation();
+  const assignStops = useAssignRouteStopsMutation();
+  const users = usersData ?? [];
+  const vehicles = vehiclesData ?? [];
+  const deliveries = deliveriesData ?? [];
   const [driverId, setDriverId] = useState("");
   const [vehicleId, setVehicleId] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -107,7 +109,7 @@ export const BuildRouteModal = ({ isOpen, onClose }: BuildRouteModalProps) => {
     setError(undefined);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!user) {
       return;
     }
@@ -134,71 +136,14 @@ export const BuildRouteModal = ({ isOpen, onClose }: BuildRouteModalProps) => {
       return;
     }
 
-    const routeId = crypto.randomUUID();
-    const number = nextRouteNumber(routes, user.companyId);
-    const vehicleName = `${vehicle.plate} · ${vehicle.name}`;
-
-    dispatch(
-      addDispatchRoute({
-        id: routeId,
-        number,
-        driverId: driver.id,
-        driverName: driver.name,
-        vehicleId: vehicle.id,
-        vehicleName,
-        companyId: user.companyId,
-        companyName: user.companyName,
-        createdAt: new Date().toISOString(),
-      }),
-    );
-    dispatch(
-      assignRouteStops({
-        routeId,
-        routeNumber: number,
-        driverId: driver.id,
-        driverName: driver.name,
-        vehicleId: vehicle.id,
-        vehicleName,
-        stops: selectedDeliveries.map((item, index) => ({
-          deliveryId: item.id,
-          stopIndex: index,
-        })),
-      }),
-    );
-
-    for (const [index, delivery] of selectedDeliveries.entries()) {
-      dispatch(
-        logOpsEvent({
-          companyId: user.companyId,
-          entityType: "delivery",
-          entityId: delivery.id,
-          entityNumber: delivery.number,
-          message: `Added to ${number} as stop ${index + 1}`,
-          actorId: user.id,
-          actorName: user.name,
-        }),
-      );
-    }
-
-    dispatch(
-      logOpsEvent({
-        companyId: user.companyId,
-        entityType: "delivery",
-        entityId: selectedDeliveries[0].id,
-        entityNumber: number,
-        message: `Route built with ${selectedDeliveries.length} stops`,
-        actorId: user.id,
-        actorName: user.name,
-        notify: [
-          {
-            userId: driver.id,
-            title: "Route assigned",
-            body: `${number} · ${selectedDeliveries.length} stops on ${vehicle.plate}`,
-            href: paths.deliveries(user.companyName),
-          },
-        ],
-      }),
-    );
+    const route = await createRoute.mutateAsync({
+      driverId: driver.id,
+      vehicleId: vehicle.id,
+    });
+    await assignStops.mutateAsync({
+      id: route.id,
+      deliveryIds: selectedDeliveries.map((item) => item.id),
+    });
     onClose();
   };
 
