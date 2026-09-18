@@ -17,7 +17,7 @@ const RestockRequests = () => {
             Restock requests
           </Typography>
           <Typography variant="body2" sx={{ color: COLORS.text.secondary }}>
-            Incoming requests from storekeepers to reorder stock
+            Incoming supply requests with status and purpose
           </Typography>
         </Box>
         <RestockRequestsTable />

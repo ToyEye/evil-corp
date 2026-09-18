@@ -3,6 +3,8 @@ import { z } from "zod";
 export const clientAddressSchema = z.object({
   id: z.string().min(1),
   line: z.string().min(1),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
 });
 
 export const clientSchema = z.object({

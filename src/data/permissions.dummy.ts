@@ -26,7 +26,7 @@ const appPagesData: AppPage[] = [
   {
     id: "warehouse",
     label: "Warehouse",
-    description: "Stock nomenclature, quantities, and categories",
+    description: "Stock, bins, pick lists, and warehouse receipts",
   },
   {
     id: "suppliers",
@@ -41,7 +41,22 @@ const appPagesData: AppPage[] = [
   {
     id: "deliveries",
     label: "Deliveries",
-    description: "Assigned deliveries and delivery creation",
+    description: "Dispatch board, fleet, and assigned deliveries",
+  },
+  {
+    id: "orders",
+    label: "Orders",
+    description: "Client orders, payment, and warehouse reservation",
+  },
+  {
+    id: "invoices",
+    label: "Invoices",
+    description: "Invoices issued from paid client orders",
+  },
+  {
+    id: "support",
+    label: "Support",
+    description: "Chat between client companies and platform Support",
   },
 ];
 
@@ -49,13 +64,16 @@ export const appPages = appPagesData.map((page) => appPageSchema.parse(page));
 
 export const defaultPageAccess: PageAccess = pageAccessSchema.parse({
   dashboard: [...USER_ROLES],
-  users: ["admin", "SEO", "Staff"],
-  settings: ["admin", "SEO"],
+  users: ["Admin", "SEO", "Staff"],
+  settings: ["Admin", "SEO"],
   warehouse: ["SEO", "Storekeeper"],
   suppliers: ["SEO", "Supply"],
   clients: ["SEO", "Staff"],
-  deliveries: ["Staff"],
+  deliveries: ["SEO", "Staff", "Driver"],
+  orders: ["Staff", "Accountant"],
+  invoices: ["SEO", "Accountant"],
+  support: [...USER_ROLES],
 });
 
 export const isPageAccessLocked = (pageId: AppPageId, role: UserRole) =>
-  pageId === "settings" && role === "admin";
+  pageId === "settings" && role === "Admin";

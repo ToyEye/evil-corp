@@ -20,6 +20,7 @@ import { selectCompanies } from "../../store/companies/companies.slice";
 import { useAppDispatch } from "../../store/types";
 import { COLORS } from "../../theme/COLORS";
 import { FitText } from "../common/FitText";
+import { NotificationBell } from "../Notifications/NotificationBell";
 import { paths, routes } from "../../routing/routes";
 import { getInitials } from "../../utils/getInitials";
 
@@ -94,6 +95,8 @@ export const PrivateHeader = () => {
                   color: COLORS.primary[700],
                 }}
               />
+
+              <NotificationBell />
 
               <Box
                 sx={{

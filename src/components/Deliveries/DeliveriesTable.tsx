@@ -66,16 +66,22 @@ const columns = columnHelper.columns([
       <Typography sx={{ color: COLORS.text.secondary }}>{info.getValue() || "—"}</Typography>
     ),
   }),
-  columnHelper.accessor("destination", {
-    header: "Destination",
+  columnHelper.accessor("vehicleName", {
+    header: "Vehicle",
     cell: (info) => (
       <Typography sx={{ color: COLORS.text.secondary }}>{info.getValue() || "—"}</Typography>
     ),
   }),
-  columnHelper.accessor("dispatchAt", {
-    header: "Dispatch",
+  columnHelper.accessor("routeNumber", {
+    header: "Route",
     cell: (info) => (
-      <Typography sx={{ color: COLORS.text.secondary }}>{formatDateTime(info.getValue())}</Typography>
+      <Typography sx={{ color: COLORS.text.secondary }}>{info.getValue() || "—"}</Typography>
+    ),
+  }),
+  columnHelper.accessor("destination", {
+    header: "Destination",
+    cell: (info) => (
+      <Typography sx={{ color: COLORS.text.secondary }}>{info.getValue() || "—"}</Typography>
     ),
   }),
   columnHelper.accessor("deliverBy", {
@@ -88,6 +94,12 @@ const columns = columnHelper.columns([
     header: "Client",
     cell: (info) => (
       <Typography sx={{ color: COLORS.text.secondary }}>{info.getValue()}</Typography>
+    ),
+  }),
+  columnHelper.accessor("orderNumber", {
+    header: "Order",
+    cell: (info) => (
+      <Typography sx={{ color: COLORS.text.secondary }}>{info.getValue() || "—"}</Typography>
     ),
   }),
   columnHelper.accessor("status", {

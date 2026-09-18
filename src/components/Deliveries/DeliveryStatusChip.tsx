@@ -16,6 +16,14 @@ const STATUS_TONES: Record<DeliveryStatus, { backgroundColor: string; color: str
     backgroundColor: "#EEF2FF",
     color: COLORS.status.inTransit,
   },
+  Arrived: {
+    backgroundColor: COLORS.warning[50],
+    color: COLORS.warning[700],
+  },
+  Failed: {
+    backgroundColor: COLORS.error[50],
+    color: COLORS.error[700],
+  },
   Canceled: {
     backgroundColor: COLORS.error[50],
     color: COLORS.error[700],

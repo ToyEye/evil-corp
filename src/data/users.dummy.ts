@@ -10,7 +10,7 @@ const dummyUsersData: User[] = [
     id: "1",
     name: "John Doe",
     email: "john.doe@vertexcapital.com",
-    role: "admin",
+    role: "Admin",
     companyName: vertexCapital.name,
     companyId: vertexCapital.id,
   },
@@ -42,7 +42,7 @@ const dummyUsersData: User[] = [
     id: "5",
     name: "Liam Brooks",
     email: "liam.brooks@rapidroute.com",
-    role: "driver",
+    role: "Driver",
     companyName: rapidRoute.name,
     companyId: rapidRoute.id,
   },
@@ -50,7 +50,7 @@ const dummyUsersData: User[] = [
     id: "19",
     name: "Caleb Morse",
     email: "caleb.morse@rapidroute.com",
-    role: "driver",
+    role: "Driver",
     companyName: rapidRoute.name,
     companyId: rapidRoute.id,
   },
@@ -106,7 +106,7 @@ const dummyUsersData: User[] = [
     id: "10",
     name: "Yuki Tanaka",
     email: "yuki.tanaka@peakstorage.com",
-    role: "driver",
+    role: "Driver",
     companyName: peakStorage.name,
     companyId: peakStorage.id,
   },
@@ -114,7 +114,7 @@ const dummyUsersData: User[] = [
     id: "20",
     name: "Ava Chen",
     email: "ava.chen@peakstorage.com",
-    role: "driver",
+    role: "Driver",
     companyName: peakStorage.name,
     companyId: peakStorage.id,
   },
@@ -166,13 +166,21 @@ const dummyUsersData: User[] = [
     companyName: peakStorage.name,
     companyId: peakStorage.id,
   },
+  {
+    id: "21",
+    name: "Lena Ortiz",
+    email: "lena.ortiz@vertexcapital.com",
+    role: "Support",
+    companyName: vertexCapital.name,
+    companyId: vertexCapital.id,
+  },
 ];
 
 export const dummyUsers = usersSchema.parse(dummyUsersData);
 
 const platformCompany = getPlatformCompany();
 const adminCompanyIds = new Set(
-  dummyUsers.filter((user) => user.role === "admin").map((user) => user.companyId),
+  dummyUsers.filter((user) => user.role === "Admin").map((user) => user.companyId),
 );
 
 if (adminCompanyIds.size !== 1 || !adminCompanyIds.has(platformCompany.id)) {

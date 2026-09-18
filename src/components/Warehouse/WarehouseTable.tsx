@@ -25,8 +25,11 @@ import {
   updateInventoryItem,
 } from "../../store/inventory/inventory.slice";
 import { addRestockRequest } from "../../store/restock/restock.slice";
+import { logOpsEvent } from "../../store/ops/logOpsEvent";
+import { paths } from "../../routing/routes";
 import { useAppDispatch } from "../../store/types";
 import { COLORS } from "../../theme/COLORS";
+import { formatMoney } from "../../utils/formatMoney";
 import { getStockLevel } from "../../theme/stockLevel";
 import { ProductDetailModal } from "./ProductDetailModal";
 import { ProductFormModal, type ProductFormValues } from "./ProductFormModal";
@@ -55,9 +58,24 @@ const columns = columnHelper.columns([
       <Typography sx={{ color: COLORS.text.secondary }}>{info.getValue()}</Typography>
     ),
   }),
+  columnHelper.accessor((row) => `${row.zone} · ${row.bin}`, {
+    id: "location",
+    header: "Location",
+    cell: (info) => (
+      <Typography sx={{ color: COLORS.text.secondary }}>{info.getValue()}</Typography>
+    ),
+  }),
   columnHelper.accessor("quantity", {
     header: "Quantity",
     cell: (info) => <StockQuantityChip quantity={info.getValue()} />,
+  }),
+  columnHelper.accessor("price", {
+    header: "Price",
+    cell: (info) => (
+      <Typography sx={{ fontWeight: 600, color: COLORS.text.primary }}>
+        {formatMoney(info.getValue())}
+      </Typography>
+    ),
   }),
 ]);
 
@@ -66,7 +84,10 @@ const toFormValues = (item: InventoryItem): ProductFormValues => ({
   name: item.name,
   description: item.description,
   quantity: item.quantity,
+  price: item.price,
   category: item.category,
+  zone: item.zone,
+  bin: item.bin,
 });
 
 export const WarehouseTable = () => {
@@ -126,7 +147,10 @@ export const WarehouseTable = () => {
         name: values.name.trim(),
         description: values.description.trim(),
         quantity: values.quantity,
+        price: values.price,
         category: values.category,
+        zone: values.zone,
+        bin: values.bin.trim(),
         companyId: user.companyId,
         companyName: user.companyName,
       }),
@@ -146,7 +170,10 @@ export const WarehouseTable = () => {
         name: values.name.trim(),
         description: values.description.trim(),
         quantity: values.quantity,
+        price: values.price,
         category: values.category,
+        zone: values.zone,
+        bin: values.bin.trim(),
       }),
     );
     setEditItem(null);
@@ -157,19 +184,42 @@ export const WarehouseTable = () => {
       return;
     }
 
+    const requestId = crypto.randomUUID();
+
     dispatch(
       addRestockRequest({
-        id: crypto.randomUUID(),
+        id: requestId,
         productId: restockItem.id,
         sku: restockItem.sku,
         productName: restockItem.name,
         quantity: values.quantity,
         note: values.note.trim(),
+        status: "New",
+        purposes: ["warehouse"],
         requestedById: user.id,
         requestedByName: user.name,
         companyId: user.companyId,
         companyName: user.companyName,
         createdAt: new Date().toISOString(),
+      }),
+    );
+    dispatch(
+      logOpsEvent({
+        companyId: user.companyId,
+        entityType: "restock",
+        entityId: requestId,
+        entityNumber: restockItem.sku,
+        message: "Restock requested",
+        actorId: user.id,
+        actorName: user.name,
+        notify: [
+          {
+            role: "Supply",
+            title: "New restock request",
+            body: `${restockItem.name} × ${values.quantity}`,
+            href: paths.suppliersRequests(user.companyName),
+          },
+        ],
       }),
     );
     setRestockItem(null);

@@ -1,11 +1,11 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 
-import { CreateDeliveryForm } from "../components/Deliveries/CreateDeliveryForm";
+import { InvoicesTable } from "../components/Invoices/InvoicesTable";
 import { PrivateLayout } from "../components/PrivateLayout/PrivateLayout";
 import { COLORS } from "../theme/COLORS";
 
-const CreateDelivery = () => {
+const Invoices = () => {
   return (
     <PrivateLayout>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
@@ -14,16 +14,16 @@ const CreateDelivery = () => {
             variant="h5"
             sx={{ fontWeight: 700, color: COLORS.text.primary, mb: 0.5 }}
           >
-            Create delivery
+            Invoices
           </Typography>
           <Typography variant="body2" sx={{ color: COLORS.text.secondary }}>
-            Plan a delivery from warehouse stock to a client address
+            Paid client orders issued as invoices
           </Typography>
         </Box>
-        <CreateDeliveryForm />
+        <InvoicesTable />
       </Box>
     </PrivateLayout>
   );
 };
 
-export default CreateDelivery;
+export default Invoices;

@@ -11,7 +11,13 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import CloseIcon from "@mui/icons-material/Close";
 
-import { INVENTORY_CATEGORIES, type InventoryItem } from "../../data/inventory.schema";
+import {
+  INVENTORY_CATEGORIES,
+  WAREHOUSE_ZONES,
+  ZONE_BY_CATEGORY,
+  type InventoryItem,
+  type WarehouseZone,
+} from "../../data/inventory.schema";
 import { formFieldSx, submitButtonSx } from "../Forms/formStyles";
 import { COLORS } from "../../theme/COLORS";
 
@@ -20,7 +26,10 @@ export type ProductFormValues = {
   name: string;
   description: string;
   quantity: number;
+  price: number;
   category: InventoryItem["category"];
+  zone: WarehouseZone;
+  bin: string;
 };
 
 type ProductFormModalProps = {
@@ -37,7 +46,10 @@ const emptyValues: ProductFormValues = {
   name: "",
   description: "",
   quantity: 0,
+  price: 0,
   category: "Packaging",
+  zone: ZONE_BY_CATEGORY.Packaging,
+  bin: "",
 };
 
 export const ProductFormModal = ({
@@ -52,6 +64,7 @@ export const ProductFormModal = ({
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ProductFormValues>({
     defaultValues: emptyValues,
@@ -164,7 +177,13 @@ export const ProductFormModal = ({
               sx={formFieldSx}
             />
             <TextField
-              {...register("category", { required: "Category is required" })}
+              {...register("category", {
+                required: "Category is required",
+                onChange: (event) => {
+                  const category = event.target.value as InventoryItem["category"];
+                  setValue("zone", ZONE_BY_CATEGORY[category]);
+                },
+              })}
               label="Category"
               select
               fullWidth
@@ -179,6 +198,29 @@ export const ProductFormModal = ({
               ))}
             </TextField>
             <TextField
+              {...register("zone", { required: "Zone is required" })}
+              label="Zone"
+              select
+              fullWidth
+              error={Boolean(errors.zone)}
+              helperText={errors.zone?.message}
+              sx={formFieldSx}
+            >
+              {WAREHOUSE_ZONES.map((zone) => (
+                <MenuItem key={zone} value={zone}>
+                  {zone}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              {...register("bin", { required: "Bin is required" })}
+              label="Bin"
+              fullWidth
+              error={Boolean(errors.bin)}
+              helperText={errors.bin?.message}
+              sx={formFieldSx}
+            />
+            <TextField
               {...register("quantity", {
                 required: "Quantity is required",
                 valueAsNumber: true,
@@ -190,6 +232,20 @@ export const ProductFormModal = ({
               error={Boolean(errors.quantity)}
               helperText={errors.quantity?.message}
               sx={formFieldSx}
+            />
+            <TextField
+              {...register("price", {
+                required: "Price is required",
+                valueAsNumber: true,
+                min: { value: 0, message: "Price cannot be negative" },
+              })}
+              label="Unit price"
+              type="number"
+              fullWidth
+              error={Boolean(errors.price)}
+              helperText={errors.price?.message}
+              sx={formFieldSx}
+              slotProps={{ htmlInput: { min: 0, step: "0.01" } }}
             />
             <Button type="submit" variant="contained" disabled={isSubmitting} sx={submitButtonSx}>
               {isEdit ? "Save changes" : "Add product"}

@@ -9,6 +9,8 @@ export const companySchema = z.object({
   name: z.string().min(1),
   type: companyTypeSchema,
   iconUrl: z.string().optional(),
+  depotLat: z.number().optional(),
+  depotLng: z.number().optional(),
 });
 
 export const companiesSchema = z

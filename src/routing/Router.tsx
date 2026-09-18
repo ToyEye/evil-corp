@@ -5,6 +5,7 @@ import { AccessRoute } from "./AccessRoute";
 import { ClientCompanyRoute } from "./ClientCompanyRoute";
 import { LegacyCompanyRedirect, ProtectedRoute } from "./ProtectedRoute";
 import { PublicRoute } from "./PublicRoute";
+import { SupportRoute } from "./SupportRoute";
 import { routes } from "./routes";
 
 const Home = lazy(() => import("../pages/Home"));
@@ -17,7 +18,11 @@ const Suppliers = lazy(() => import("../pages/Suppliers"));
 const RestockRequests = lazy(() => import("../pages/RestockRequests"));
 const Clients = lazy(() => import("../pages/Clients"));
 const Deliveries = lazy(() => import("../pages/Deliveries"));
-const CreateDelivery = lazy(() => import("../pages/CreateDelivery"));
+const Fleet = lazy(() => import("../pages/Fleet"));
+const Orders = lazy(() => import("../pages/Orders"));
+const CreateOrder = lazy(() => import("../pages/CreateOrder"));
+const Invoices = lazy(() => import("../pages/Invoices"));
+const Support = lazy(() => import("../pages/Support"));
 
 export const Router = () => {
   return (
@@ -51,10 +56,18 @@ export const Router = () => {
       />
       <Route path="/clients" element={<LegacyCompanyRedirect page="clients" />} />
       <Route path="/deliveries" element={<LegacyCompanyRedirect page="deliveries" />} />
+      <Route path="/deliveries/fleet" element={<LegacyCompanyRedirect page="fleet" />} />
       <Route
         path="/deliveries/new"
-        element={<LegacyCompanyRedirect page="createDelivery" />}
+        element={<LegacyCompanyRedirect page="deliveries" />}
       />
+      <Route path="/orders" element={<LegacyCompanyRedirect page="orders" />} />
+      <Route
+        path="/orders/new"
+        element={<LegacyCompanyRedirect page="createOrder" />}
+      />
+      <Route path="/invoices" element={<LegacyCompanyRedirect page="invoices" />} />
+      <Route path="/support" element={<LegacyCompanyRedirect page="support" />} />
 
       <Route path="/:companyName" element={<ProtectedRoute />}>
         <Route index element={<Navigate to="dashboard" replace />} />
@@ -136,13 +149,52 @@ export const Router = () => {
           }
         />
         <Route
-          path="deliveries/new"
+          path="deliveries/fleet"
           element={
             <ClientCompanyRoute>
               <AccessRoute pageId="deliveries">
-                <CreateDelivery />
+                <Fleet />
               </AccessRoute>
             </ClientCompanyRoute>
+          }
+        />
+        <Route path="deliveries/new" element={<Navigate to="../deliveries" replace />} />
+        <Route
+          path="orders"
+          element={
+            <ClientCompanyRoute>
+              <AccessRoute pageId="orders">
+                <Orders />
+              </AccessRoute>
+            </ClientCompanyRoute>
+          }
+        />
+        <Route
+          path="orders/new"
+          element={
+            <ClientCompanyRoute>
+              <AccessRoute pageId="orders">
+                <CreateOrder />
+              </AccessRoute>
+            </ClientCompanyRoute>
+          }
+        />
+        <Route
+          path="invoices"
+          element={
+            <ClientCompanyRoute>
+              <AccessRoute pageId="invoices">
+                <Invoices />
+              </AccessRoute>
+            </ClientCompanyRoute>
+          }
+        />
+        <Route
+          path="support"
+          element={
+            <SupportRoute>
+              <Support />
+            </SupportRoute>
           }
         />
       </Route>

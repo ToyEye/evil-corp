@@ -1,7 +1,9 @@
 import { dummyCompanies } from "./companies.dummy";
 import { dummyClients } from "./clients.dummy";
 import { dummyInventoryItems } from "./inventory.dummy";
+import { dummyOrders } from "./orders.dummy";
 import { dummyUsers } from "./users.dummy";
+import { dummyVehicles } from "./vehicles.dummy";
 import { deliveriesSchema, type Delivery } from "./deliveries.schema";
 
 const [, rapidRoute, peakStorage] = dummyCompanies;
@@ -18,6 +20,9 @@ const byId = <T extends { id: string }>(items: T[], id: string) => {
 
 const liam = byId(dummyUsers, "5");
 const yuki = byId(dummyUsers, "10");
+const van = byId(dummyVehicles, "vehicle-rr-1");
+const truck = byId(dummyVehicles, "vehicle-rr-2");
+const reefer = byId(dummyVehicles, "vehicle-ps-1");
 const marta = byId(dummyClients, "client-rr-1");
 const james = byId(dummyClients, "client-rr-2");
 const sofia = byId(dummyClients, "client-rr-3");
@@ -29,6 +34,7 @@ const scanner = byId(dummyInventoryItems, `${rapidRoute.id}-item-8`);
 const bin = byId(dummyInventoryItems, `${peakStorage.id}-item-2`);
 const gloves = byId(dummyInventoryItems, `${peakStorage.id}-item-4`);
 const carton = byId(dummyInventoryItems, `${peakStorage.id}-item-8`);
+const orderRr1 = byId(dummyOrders, "order-rr-1");
 
 const dummyDeliveriesData: Delivery[] = [
   {
@@ -38,8 +44,15 @@ const dummyDeliveriesData: Delivery[] = [
     clientName: marta.name,
     driverId: liam.id,
     driverName: liam.name,
+    vehicleId: van.id,
+    vehicleName: `${van.plate} · ${van.name}`,
+    routeId: "route-rr-1",
+    routeNumber: "RT-1001",
+    stopIndex: 0,
     addressId: marta.addresses[0].id,
     destination: marta.addresses[0].line,
+    lat: marta.addresses[0].lat,
+    lng: marta.addresses[0].lng,
     dispatchAt: "2026-09-08T07:30:00.000Z",
     deliverBy: "2026-09-08T11:00:00.000Z",
     notes: "Use dock 4. Ask for Marta if the gate is closed.",
@@ -49,6 +62,9 @@ const dummyDeliveriesData: Delivery[] = [
       { productId: tape.id, sku: tape.sku, name: tape.name, quantity: 8 },
     ],
     reservesStock: false,
+    stockWrittenOff: false,
+    orderId: orderRr1.id,
+    orderNumber: orderRr1.number,
     companyId: rapidRoute.id,
     companyName: rapidRoute.name,
     createdAt: "2026-09-07T15:10:00.000Z",
@@ -60,12 +76,20 @@ const dummyDeliveriesData: Delivery[] = [
     clientName: james.name,
     driverId: liam.id,
     driverName: liam.name,
+    vehicleId: van.id,
+    vehicleName: `${van.plate} · ${van.name}`,
+    routeId: "route-rr-1",
+    routeNumber: "RT-1001",
+    stopIndex: 1,
     addressId: james.addresses[0].id,
     destination: james.addresses[0].line,
+    lat: james.addresses[0].lat,
+    lng: james.addresses[0].lng,
     notes: "",
     status: "New",
     items: [{ productId: scanner.id, sku: scanner.sku, name: scanner.name, quantity: 2 }],
     reservesStock: false,
+    stockWrittenOff: false,
     companyId: rapidRoute.id,
     companyName: rapidRoute.name,
     createdAt: "2026-09-08T08:40:00.000Z",
@@ -77,14 +101,20 @@ const dummyDeliveriesData: Delivery[] = [
     clientName: sofia.name,
     driverId: liam.id,
     driverName: liam.name,
+    vehicleId: truck.id,
+    vehicleName: `${truck.plate} · ${truck.name}`,
     addressId: sofia.addresses[1].id,
     destination: sofia.addresses[1].line,
+    lat: sofia.addresses[1].lat,
+    lng: sofia.addresses[1].lng,
     dispatchAt: "2026-09-08T06:00:00.000Z",
     deliverBy: "2026-09-08T09:30:00.000Z",
     notes: "Cold store B. Keep film on the pallets.",
     status: "In transit",
     items: [{ productId: pallet.id, sku: pallet.sku, name: pallet.name, quantity: 20 }],
     reservesStock: false,
+    stockWrittenOff: true,
+    shippedAt: "2026-09-08T06:00:00.000Z",
     companyId: rapidRoute.id,
     companyName: rapidRoute.name,
     createdAt: "2026-09-07T18:20:00.000Z",
@@ -96,14 +126,22 @@ const dummyDeliveriesData: Delivery[] = [
     clientName: elena.name,
     driverId: yuki.id,
     driverName: yuki.name,
+    vehicleId: reefer.id,
+    vehicleName: `${reefer.plate} · ${reefer.name}`,
+    routeId: "route-ps-1",
+    routeNumber: "RT-2001",
+    stopIndex: 0,
     addressId: elena.addresses[0].id,
     destination: elena.addresses[0].line,
+    lat: elena.addresses[0].lat,
+    lng: elena.addresses[0].lng,
     dispatchAt: "2026-09-09T08:00:00.000Z",
     deliverBy: "2026-09-09T13:00:00.000Z",
     notes: "Peak escort required for the chilled hall.",
     status: "Planned",
     items: [{ productId: gloves.id, sku: gloves.sku, name: gloves.name, quantity: 6 }],
     reservesStock: false,
+    stockWrittenOff: false,
     companyId: peakStorage.id,
     companyName: peakStorage.name,
     createdAt: "2026-09-08T09:05:00.000Z",
@@ -113,10 +151,10 @@ const dummyDeliveriesData: Delivery[] = [
     number: "DLV-2002",
     clientId: tom.id,
     clientName: tom.name,
-    driverId: yuki.id,
-    driverName: yuki.name,
     addressId: tom.addresses[0].id,
     destination: tom.addresses[0].line,
+    lat: tom.addresses[0].lat,
+    lng: tom.addresses[0].lng,
     notes: "North wall drop if nobody is at the dock.",
     status: "New",
     items: [
@@ -124,6 +162,7 @@ const dummyDeliveriesData: Delivery[] = [
       { productId: carton.id, sku: carton.sku, name: carton.name, quantity: 15 },
     ],
     reservesStock: false,
+    stockWrittenOff: false,
     companyId: peakStorage.id,
     companyName: peakStorage.name,
     createdAt: "2026-09-08T10:15:00.000Z",

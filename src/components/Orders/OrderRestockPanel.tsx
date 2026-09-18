@@ -7,14 +7,14 @@ import Typography from "@mui/material/Typography";
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 
-import type { SplitDeliveryLine } from "./deliveryForm.utils";
 import { PREVIEW_BAR_HEIGHT } from "../PreviewSwitcher/previewSwitcher.styles";
 import { COLORS } from "../../theme/COLORS";
 import { formFieldSx, submitButtonSx } from "../Forms/formStyles";
+import type { SplitOrderLine } from "./orderForm.utils";
 
-type DeliveryRestockPanelProps = {
+type OrderRestockPanelProps = {
   open: boolean;
-  items: SplitDeliveryLine[];
+  items: SplitOrderLine[];
   note: string;
   sent: boolean;
   canSend: boolean;
@@ -24,7 +24,7 @@ type DeliveryRestockPanelProps = {
   onClose: () => void;
 };
 
-export const DeliveryRestockPanel = ({
+export const OrderRestockPanel = ({
   open,
   items,
   note,
@@ -34,7 +34,7 @@ export const DeliveryRestockPanel = ({
   onRemove,
   onSend,
   onClose,
-}: DeliveryRestockPanelProps) => {
+}: OrderRestockPanelProps) => {
   return (
     <Drawer
       variant="persistent"
@@ -71,7 +71,7 @@ export const DeliveryRestockPanel = ({
             Supply request
           </Typography>
           <Typography variant="body2" sx={{ color: COLORS.text.secondary, mt: 0.5 }}>
-            Missing stock for the Supply department
+            Missing stock will be requested with the order number
           </Typography>
         </Box>
         <IconButton
@@ -91,7 +91,7 @@ export const DeliveryRestockPanel = ({
       <Box sx={{ p: 2.5, display: "flex", flexDirection: "column", gap: 2 }}>
         {items.length === 0 ? (
           <Typography variant="body2" sx={{ color: COLORS.text.muted }}>
-            Add missing products from the delivery form
+            Add missing products from the order form
           </Typography>
         ) : (
           items.map((item) => (
@@ -143,18 +143,18 @@ export const DeliveryRestockPanel = ({
 
         {sent ? (
           <Typography variant="body2" sx={{ color: COLORS.success.text }}>
-            Request sent. You can create the delivery.
+            Request is ready. Create the order to send it to Supply.
           </Typography>
         ) : null}
 
         {!canSend && !sent && items.length > 0 ? (
           <Typography variant="body2" sx={{ color: COLORS.text.tertiary }}>
-            Add every short product before sending the request
+            Add every short product before confirming the request
           </Typography>
         ) : null}
 
         <Typography variant="caption" sx={{ color: COLORS.text.muted }}>
-          Note is optional
+          Note is optional. The order number is added automatically.
         </Typography>
 
         <Button
@@ -164,7 +164,7 @@ export const DeliveryRestockPanel = ({
           onClick={onSend}
           sx={{ ...submitButtonSx, mt: 0 }}
         >
-          Send request
+          Confirm shortage
         </Button>
       </Box>
     </Drawer>

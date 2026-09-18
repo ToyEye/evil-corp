@@ -2,14 +2,17 @@ import { z } from "zod";
 
 export const USER_ROLES = [
   "SEO",
-  "driver",
+  "Driver",
   "Storekeeper",
   "Supply",
   "Accountant",
   "Staff",
   "Client",
-  "admin",
+  "Support",
+  "Admin",
 ] as const;
+
+export const PLATFORM_ONLY_ROLES = ["Admin", "Support"] as const;
 
 export const userRoleSchema = z.enum(USER_ROLES);
 
@@ -24,21 +27,22 @@ export const userSchema = z.object({
 });
 
 export const FORBIDDEN_ROLES_IN_ADMIN_COMPANY = [
-  "driver",
+  "Driver",
   "Storekeeper",
   "Supply",
   "Client",
 ] as const;
 
-const forbiddenRolesInAdminCompany = new Set<string>(FORBIDDEN_ROLES_IN_ADMIN_COMPANY);
+const forbiddenRolesInAdminCompany = new Set<string>(
+  FORBIDDEN_ROLES_IN_ADMIN_COMPANY,
+);
 
 export const usersSchema = z
   .array(userSchema)
   .min(1)
-  .refine(
-    (users) => new Set(users.map((user) => user.companyId)).size >= 3,
-    { message: "Users must belong to at least 3 companies" },
-  )
+  .refine((users) => new Set(users.map((user) => user.companyId)).size >= 3, {
+    message: "Users must belong to at least 3 companies",
+  })
   .refine(
     (users) => {
       const namesByCompanyId = new Map<string, string>();
@@ -55,12 +59,16 @@ export const usersSchema = z
 
       return true;
     },
-    { message: "Users with the same companyId must share the same companyName" },
+    {
+      message: "Users with the same companyId must share the same companyName",
+    },
   )
   .refine(
     (users) => {
       const adminCompanyIds = new Set(
-        users.filter((user) => user.role === "admin").map((user) => user.companyId),
+        users
+          .filter((user) => user.role === "Admin")
+          .map((user) => user.companyId),
       );
 
       return adminCompanyIds.size === 1;
@@ -70,7 +78,9 @@ export const usersSchema = z
   .refine(
     (users) => {
       const adminCompanyIds = new Set(
-        users.filter((user) => user.role === "admin").map((user) => user.companyId),
+        users
+          .filter((user) => user.role === "Admin")
+          .map((user) => user.companyId),
       );
 
       return !users.some(
@@ -79,7 +89,10 @@ export const usersSchema = z
           forbiddenRolesInAdminCompany.has(user.role),
       );
     },
-    { message: "A company with an admin cannot have driver, Storekeeper, Supply, or Client roles" },
+    {
+      message:
+        "A company with an Admin cannot have Driver, Storekeeper, Supply, or Client roles",
+    },
   );
 
 export type UserRole = z.infer<typeof userRoleSchema>;

@@ -24,6 +24,14 @@ import { companiesSlice } from "./companies/companies.slice";
 import { usersSlice } from "./users/users.slice";
 import { clientsSlice } from "./clients/clients.slice";
 import { deliveriesSlice } from "./deliveries/deliveries.slice";
+import { ordersSlice } from "./orders/orders.slice";
+import { activitySlice } from "./activity/activity.slice";
+import { notificationsSlice } from "./notifications/notifications.slice";
+import { invoicesSlice } from "./invoices/invoices.slice";
+import { vehiclesSlice } from "./vehicles/vehicles.slice";
+import { routesSlice } from "./routes/routes.slice";
+import { supportSlice } from "./support/support.slice";
+import { themeSlice } from "./theme/theme.slice";
 
 const persistMigrations = {
   1: (state: PersistedState) => {
@@ -96,6 +104,14 @@ const store = configureStore({
     users: usersSlice.reducer,
     clients: clientsSlice.reducer,
     deliveries: deliveriesSlice.reducer,
+    orders: ordersSlice.reducer,
+    activity: activitySlice.reducer,
+    notifications: notificationsSlice.reducer,
+    invoices: invoicesSlice.reducer,
+    vehicles: vehiclesSlice.reducer,
+    routes: routesSlice.reducer,
+    support: supportSlice.reducer,
+    theme: themeSlice.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

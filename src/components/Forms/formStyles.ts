@@ -4,6 +4,7 @@ export const formFieldSx = {
   "& .MuiOutlinedInput-root": {
     borderRadius: "10px",
     backgroundColor: COLORS.background.subtle,
+    color: COLORS.text.primary,
     transition: "background-color 0.2s ease, box-shadow 0.2s ease",
     "& fieldset": {
       borderColor: COLORS.border.default,
@@ -19,6 +20,12 @@ export const formFieldSx = {
         borderWidth: "1px",
       },
     },
+  },
+  "& .MuiOutlinedInput-input": {
+    color: COLORS.text.primary,
+  },
+  "& .MuiSelect-icon": {
+    color: COLORS.text.tertiary,
   },
   "& .MuiInputLabel-root": {
     color: COLORS.text.secondary,

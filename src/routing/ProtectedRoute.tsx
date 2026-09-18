@@ -40,7 +40,11 @@ type LegacyCompanyRedirectProps = {
     | "suppliersRequests"
     | "clients"
     | "deliveries"
-    | "createDelivery";
+    | "fleet"
+    | "orders"
+    | "createOrder"
+    | "invoices"
+    | "support";
 };
 
 export const LegacyCompanyRedirect = ({ page }: LegacyCompanyRedirectProps) => {

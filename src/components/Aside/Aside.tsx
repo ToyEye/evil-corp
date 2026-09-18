@@ -11,6 +11,7 @@ import { isPlatformUser } from "../../data/companies.dummy";
 import { selectUser } from "../../store/auth/auth.slice";
 import { selectCompanies } from "../../store/companies/companies.slice";
 import { selectPageAccess } from "../../store/permissions/permissions.slice";
+import { canAccessSupportChat } from "../../routing/supportAccess";
 import { PREVIEW_BAR_HEIGHT } from "../PreviewSwitcher/previewSwitcher.styles";
 import { COLORS } from "../../theme/COLORS";
 import { FitText } from "../common/FitText";
@@ -69,13 +70,21 @@ export const Aside = () => {
       return [];
     }
 
-    const accessible = filterLinksByAccess(getAsideLinks(companyName, pageAccess), user.role);
+    const accessible = filterLinksByAccess(getAsideLinks(companyName, pageAccess), user.role).filter(
+      (link) => link.id !== "support" || canAccessSupportChat(user, pageAccess),
+    );
 
     if (!isPlatformUser(user)) {
       return accessible;
     }
 
-    return accessible.filter((link) => link.id !== "clients" && link.id !== "deliveries");
+    return accessible.filter(
+      (link) =>
+        link.id !== "clients" &&
+        link.id !== "deliveries" &&
+        link.id !== "orders" &&
+        link.id !== "invoices",
+    );
   }, [companyName, pageAccess, user]);
 
   return (

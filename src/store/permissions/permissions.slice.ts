@@ -25,6 +25,9 @@ const clonePageAccess = (access: PageAccess): PageAccess => ({
   suppliers: [...access.suppliers],
   clients: [...access.clients],
   deliveries: [...access.deliveries],
+  orders: [...access.orders],
+  invoices: [...access.invoices],
+  support: [...access.support],
 });
 
 const initialState: PermissionsState = {

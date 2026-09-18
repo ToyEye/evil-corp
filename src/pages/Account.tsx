@@ -17,7 +17,7 @@ const Account = () => {
             Account settings
           </Typography>
           <Typography variant="body2" sx={{ color: COLORS.text.secondary }}>
-            Update your profile details
+            Update your profile details and appearance
           </Typography>
         </Box>
         <AccountSettingsForm />

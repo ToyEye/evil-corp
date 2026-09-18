@@ -1,13 +1,19 @@
 import PeopleOutlinedIcon from "@mui/icons-material/PeopleOutlined";
+import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
+import { useSelector } from "react-redux";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Typography from "@mui/material/Typography";
 
-import { dummyUsers } from "../../data/users.dummy";
 import { COLORS } from "../../theme/COLORS";
+import { selectSupportThreads } from "../../store/support/support.slice";
+import { selectUsers } from "../../store/users/users.slice";
 import { DashboardStatCard } from "./DashboardStatCard";
 
 export const PlatformDashboard = () => {
+  const users = useSelector(selectUsers);
+  const threads = useSelector(selectSupportThreads);
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
       <Box>
@@ -34,12 +40,25 @@ export const PlatformDashboard = () => {
         </Typography>
       </Box>
 
-      <Box sx={{ maxWidth: 360, minWidth: 0 }}>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 360px))" },
+          gap: 2,
+        }}
+      >
         <DashboardStatCard
           label="Total users"
-          value={dummyUsers.length}
+          value={users.length}
           description="People across all companies"
           icon={PeopleOutlinedIcon}
+        />
+        <DashboardStatCard
+          label="Support chats"
+          value={threads.length}
+          description="Client company conversations"
+          icon={SupportAgentOutlinedIcon}
+          accent="info"
         />
       </Box>
     </Box>

@@ -15,7 +15,11 @@ export const routes = {
   SuppliersRequests: "/:companyName/suppliers/requests",
   Clients: "/:companyName/clients",
   Deliveries: "/:companyName/deliveries",
-  CreateDelivery: "/:companyName/deliveries/new",
+  Fleet: "/:companyName/deliveries/fleet",
+  Orders: "/:companyName/orders",
+  CreateOrder: "/:companyName/orders/new",
+  Invoices: "/:companyName/invoices",
+  Support: "/:companyName/support",
 } as const;
 
 export const toCompanySlug = (companyName: string | null | undefined) => {
@@ -51,5 +55,9 @@ export const paths = {
     withCompany(routes.SuppliersRequests, companyName),
   clients: (companyName: string) => withCompany(routes.Clients, companyName),
   deliveries: (companyName: string) => withCompany(routes.Deliveries, companyName),
-  createDelivery: (companyName: string) => withCompany(routes.CreateDelivery, companyName),
+  fleet: (companyName: string) => withCompany(routes.Fleet, companyName),
+  orders: (companyName: string) => withCompany(routes.Orders, companyName),
+  createOrder: (companyName: string) => withCompany(routes.CreateOrder, companyName),
+  invoices: (companyName: string) => withCompany(routes.Invoices, companyName),
+  support: (companyName: string) => withCompany(routes.Support, companyName),
 };

@@ -21,6 +21,7 @@ import type { Client } from "../../data/clients.schema";
 import { selectUser } from "../../store/auth/auth.slice";
 import { addClient, selectClients, updateClient } from "../../store/clients/clients.slice";
 import { syncDeliveryClient } from "../../store/deliveries/deliveries.slice";
+import { syncOrderClient } from "../../store/orders/orders.slice";
 import { useAppDispatch } from "../../store/types";
 import { COLORS } from "../../theme/COLORS";
 import { ClientDetailModal } from "./ClientDetailModal";
@@ -155,6 +156,13 @@ export const ClientsTable = () => {
     dispatch(updateClient(nextClient));
     dispatch(
       syncDeliveryClient({
+        clientId: nextClient.id,
+        clientName: nextClient.name,
+        addresses: nextClient.addresses,
+      }),
+    );
+    dispatch(
+      syncOrderClient({
         clientId: nextClient.id,
         clientName: nextClient.name,
         addresses: nextClient.addresses,

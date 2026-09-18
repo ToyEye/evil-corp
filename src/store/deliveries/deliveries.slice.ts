@@ -5,9 +5,11 @@ import { dummyDeliveries } from "../../data/deliveries.dummy";
 import {
   canEditDeliveryAssignment,
   getDeliveryStatusFromSchedule,
-  hasDeliverySchedule,
+  isDeliveryTerminal,
   type Delivery,
+  type DeliveryProof,
   type DeliveryStatus,
+  type FailureReason,
 } from "../../data/deliveries.schema";
 
 type DeliveriesState = {
@@ -17,6 +19,12 @@ type DeliveriesState = {
 type UpdateDeliveryStatusPayload = {
   id: string;
   status: DeliveryStatus;
+  proof?: DeliveryProof;
+  failureReason?: FailureReason;
+  shippedAt?: string;
+  arrivedAt?: string;
+  completedAt?: string;
+  stockWrittenOff?: boolean;
 };
 
 type UpdateDeliverySchedulePayload = {
@@ -29,6 +37,30 @@ type UpdateDeliveryDriverPayload = {
   id: string;
   driverId?: string;
   driverName?: string;
+};
+
+type UpdateDeliveryAddressPayload = {
+  id: string;
+  addressId?: string;
+  destination?: string;
+  lat?: number;
+  lng?: number;
+};
+
+type UpdateDeliveryVehiclePayload = {
+  id: string;
+  vehicleId?: string;
+  vehicleName?: string;
+};
+
+type AssignRouteStopsPayload = {
+  routeId: string;
+  routeNumber: string;
+  driverId: string;
+  driverName: string;
+  vehicleId: string;
+  vehicleName: string;
+  stops: Array<{ deliveryId: string; stopIndex: number }>;
 };
 
 type SyncDeliveryClientPayload = {
@@ -51,18 +83,35 @@ export const deliveriesSlice = createSlice({
     updateDeliveryStatus: (state, action: PayloadAction<UpdateDeliveryStatusPayload>) => {
       const delivery = state.items.find((item) => item.id === action.payload.id);
 
-      if (!delivery || delivery.status === "Canceled" || delivery.status === "Done") {
-        return;
-      }
-
-      if (
-        action.payload.status === "In transit" &&
-        !hasDeliverySchedule(delivery.dispatchAt, delivery.deliverBy)
-      ) {
+      if (!delivery || isDeliveryTerminal(delivery.status)) {
         return;
       }
 
       delivery.status = action.payload.status;
+
+      if (action.payload.proof) {
+        delivery.proof = action.payload.proof;
+      }
+
+      if (action.payload.failureReason) {
+        delivery.failureReason = action.payload.failureReason;
+      }
+
+      if (action.payload.shippedAt) {
+        delivery.shippedAt = action.payload.shippedAt;
+      }
+
+      if (action.payload.arrivedAt) {
+        delivery.arrivedAt = action.payload.arrivedAt;
+      }
+
+      if (action.payload.completedAt) {
+        delivery.completedAt = action.payload.completedAt;
+      }
+
+      if (action.payload.stockWrittenOff !== undefined) {
+        delivery.stockWrittenOff = action.payload.stockWrittenOff;
+      }
     },
     updateDeliverySchedule: (state, action: PayloadAction<UpdateDeliverySchedulePayload>) => {
       const delivery = state.items.find((item) => item.id === action.payload.id);
@@ -85,6 +134,18 @@ export const deliveriesSlice = createSlice({
       delivery.driverId = action.payload.driverId;
       delivery.driverName = action.payload.driverName;
     },
+    updateDeliveryAddress: (state, action: PayloadAction<UpdateDeliveryAddressPayload>) => {
+      const delivery = state.items.find((item) => item.id === action.payload.id);
+
+      if (!delivery || !canEditDeliveryAssignment(delivery.status)) {
+        return;
+      }
+
+      delivery.addressId = action.payload.addressId;
+      delivery.destination = action.payload.destination;
+      delivery.lat = action.payload.lat;
+      delivery.lng = action.payload.lng;
+    },
     syncDeliveryClient: (state, action: PayloadAction<SyncDeliveryClientPayload>) => {
       for (const delivery of state.items) {
         if (delivery.clientId !== action.payload.clientId) {
@@ -96,6 +157,38 @@ export const deliveriesSlice = createSlice({
 
         if (address) {
           delivery.destination = address.line;
+          delivery.lat = address.lat;
+          delivery.lng = address.lng;
+        }
+      }
+    },
+    updateDeliveryVehicle: (state, action: PayloadAction<UpdateDeliveryVehiclePayload>) => {
+      const delivery = state.items.find((item) => item.id === action.payload.id);
+
+      if (!delivery || !canEditDeliveryAssignment(delivery.status)) {
+        return;
+      }
+
+      delivery.vehicleId = action.payload.vehicleId;
+      delivery.vehicleName = action.payload.vehicleName;
+    },
+    assignRouteStops: (state, action: PayloadAction<AssignRouteStopsPayload>) => {
+      for (const stop of action.payload.stops) {
+        const delivery = state.items.find((item) => item.id === stop.deliveryId);
+
+        if (!delivery || !canEditDeliveryAssignment(delivery.status)) {
+          continue;
+        }
+
+        delivery.routeId = action.payload.routeId;
+        delivery.routeNumber = action.payload.routeNumber;
+        delivery.stopIndex = stop.stopIndex;
+        delivery.driverId = action.payload.driverId;
+        delivery.driverName = action.payload.driverName;
+        delivery.vehicleId = action.payload.vehicleId;
+        delivery.vehicleName = action.payload.vehicleName;
+        if (delivery.status === "New") {
+          delivery.status = "Planned";
         }
       }
     },
@@ -110,6 +203,9 @@ export const {
   updateDeliveryStatus,
   updateDeliverySchedule,
   updateDeliveryDriver,
+  updateDeliveryAddress,
+  updateDeliveryVehicle,
+  assignRouteStops,
   syncDeliveryClient,
 } = deliveriesSlice.actions;
 

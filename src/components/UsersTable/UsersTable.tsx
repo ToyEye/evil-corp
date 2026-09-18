@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import Autocomplete from "@mui/material/Autocomplete";
 import Box from "@mui/material/Box";
@@ -33,10 +33,11 @@ import { getVisibleUsers } from "../../data/users.dummy";
 import { USER_ROLES, type User, type UserRole } from "../../data/users.schema";
 import { selectUser } from "../../store/auth/auth.slice";
 import { selectCompanies } from "../../store/companies/companies.slice";
-import { selectUsers, updateUserRole } from "../../store/users/users.slice";
+import { selectUsers, addUser, updateUserRole } from "../../store/users/users.slice";
 import { useAppDispatch } from "../../store/types";
 import { formFieldSx } from "../Forms/formStyles";
 import { COLORS } from "../../theme/COLORS";
+import { UserFormModal, type UserFormValues } from "./UserFormModal";
 
 const usersTableFeatures = tableFeatures({
   columnFilteringFeature,
@@ -66,7 +67,7 @@ const UserRoleCell = ({ user }: { user: User }) => {
     Boolean(currentUser) &&
     user.id !== currentUser?.id &&
     user.companyId === currentUser?.companyId &&
-    user.role !== "admin";
+    user.role !== "Admin";
 
   if (!canEdit) {
     return <RoleChip role={user.role} />;
@@ -141,10 +142,14 @@ const getStringFilterValue = (value: unknown) =>
   typeof value === "string" ? value : "";
 
 export const UsersTable = () => {
+  const dispatch = useAppDispatch();
   const user = useSelector(selectUser);
   const companies = useSelector(selectCompanies);
   const allUsers = useSelector(selectUsers);
   const canViewAllUsers = isPlatformUser(user);
+  const canManage = canAssignCompanyRoles(user?.role);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [emailError, setEmailError] = useState<string>();
   const companyOptions = companies.map((company) => company.name);
   const users = useMemo(
     () =>
@@ -168,7 +173,65 @@ export const UsersTable = () => {
   const rows = table.getRowModel().rows;
   const hasActiveFilters = table.state.columnFilters.length > 0;
 
+  const handleAdd = (values: UserFormValues) => {
+    if (!user) {
+      return;
+    }
+
+    if (allUsers.some((item) => item.email.toLowerCase() === values.email.trim().toLowerCase())) {
+      setEmailError("This email is already in use");
+      return;
+    }
+
+    const company =
+      companies.find((item) => item.id === values.companyId) ??
+      companies.find((item) => item.id === user.companyId);
+
+    if (!company) {
+      return;
+    }
+
+    dispatch(
+      addUser({
+        id: crypto.randomUUID(),
+        name: values.name.trim(),
+        email: values.email.trim(),
+        role: values.role,
+        companyId: company.id,
+        companyName: company.name,
+      }),
+    );
+    setEmailError(undefined);
+    setIsAddOpen(false);
+  };
+
   return (
+    <>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      {canManage ? (
+        <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+          <Button
+            variant="contained"
+            onClick={() => {
+              setEmailError(undefined);
+              setIsAddOpen(true);
+            }}
+            sx={{
+              px: 2.5,
+              py: 1.1,
+              borderRadius: "10px",
+              textTransform: "none",
+              fontWeight: 600,
+              backgroundColor: COLORS.primary[600],
+              boxShadow: `0 4px 14px ${COLORS.ui.shadowStrong}`,
+              "&:hover": { backgroundColor: COLORS.primary[700] },
+            }}
+          >
+            Add personnel
+          </Button>
+        </Box>
+      ) : null}
+
     <Box
       sx={{
         borderRadius: "16px",
@@ -314,5 +377,20 @@ export const UsersTable = () => {
         </Table>
       </TableContainer>
     </Box>
+    </Box>
+
+      <UserFormModal
+        isOpen={isAddOpen}
+        companies={companies}
+        showCompanyField={canViewAllUsers}
+        defaultCompanyId={user?.companyId ?? ""}
+        emailError={emailError}
+        onClose={() => {
+          setEmailError(undefined);
+          setIsAddOpen(false);
+        }}
+        onSubmit={handleAdd}
+      />
+    </>
   );
 };

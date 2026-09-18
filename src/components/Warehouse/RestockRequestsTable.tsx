@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -17,10 +17,28 @@ import {
   useTable,
 } from "@tanstack/react-table";
 
-import type { RestockRequest } from "../../data/restock.schema";
+import { findOrderByNote } from "../../data/orders.schema";
+import {
+  canReceiveRestock,
+  canSupplyAdvanceRestock,
+  getNextRestockStatus,
+  getRestockPurposeLabel,
+  type RestockRequest,
+} from "../../data/restock.schema";
 import { selectUser } from "../../store/auth/auth.slice";
-import { selectRestockRequests } from "../../store/restock/restock.slice";
+import {
+  adjustInventoryQuantity,
+  selectInventoryItems,
+} from "../../store/inventory/inventory.slice";
+import { reserveOrderItems, selectOrders } from "../../store/orders/orders.slice";
+import { addRestockRequest, selectRestockRequests, updateRestockStatus } from "../../store/restock/restock.slice";
+import { logOpsEvent } from "../../store/ops/logOpsEvent";
+import { paths } from "../../routing/routes";
+import { useAppDispatch } from "../../store/types";
 import { COLORS } from "../../theme/COLORS";
+import { RestockDetailModal } from "./RestockDetailModal";
+import { RestockStatusChip } from "./RestockStatusChip";
+import { SupplyRequestFormModal, type SupplyRequestFormValues } from "./SupplyRequestFormModal";
 
 const PAGE_SIZES = [10, 20, 50] as const;
 
@@ -67,6 +85,17 @@ const columns = columnHelper.columns([
       <Typography sx={{ fontWeight: 600, color: COLORS.text.primary }}>{info.getValue()}</Typography>
     ),
   }),
+  columnHelper.accessor("status", {
+    header: "Status",
+    cell: (info) => <RestockStatusChip status={info.getValue()} />,
+  }),
+  columnHelper.accessor((row) => getRestockPurposeLabel(row), {
+    id: "purpose",
+    header: "Purpose",
+    cell: (info) => (
+      <Typography sx={{ color: COLORS.text.secondary }}>{info.getValue()}</Typography>
+    ),
+  }),
   columnHelper.accessor("requestedByName", {
     header: "From",
     cell: (info) => (
@@ -92,14 +121,36 @@ const columns = columnHelper.columns([
 type RestockRequestsTableProps = {
   title?: string;
   description?: string;
+  incomingOnly?: boolean;
 };
 
-export const RestockRequestsTable = ({ title, description }: RestockRequestsTableProps) => {
+export const RestockRequestsTable = ({ title, description, incomingOnly }: RestockRequestsTableProps) => {
+  const dispatch = useAppDispatch();
   const user = useSelector(selectUser);
   const items = useSelector(selectRestockRequests);
+  const orders = useSelector(selectOrders);
+  const inventory = useSelector(selectInventoryItems);
+  const [detailItem, setDetailItem] = useState<RestockRequest | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const canCreate = user?.role === "Supply" && !incomingOnly;
   const companyItems = useMemo(
-    () => items.filter((item) => item.companyId === user?.companyId),
-    [items, user?.companyId],
+    () =>
+      items.filter((item) => {
+        if (item.companyId !== user?.companyId) {
+          return false;
+        }
+
+        if (incomingOnly) {
+          return item.status === "Delivered";
+        }
+
+        return true;
+      }),
+    [incomingOnly, items, user?.companyId],
+  );
+  const companyProducts = useMemo(
+    () => inventory.filter((item) => item.companyId === user?.companyId),
+    [inventory, user?.companyId],
   );
 
   const table = useTable({
@@ -119,23 +170,196 @@ export const RestockRequestsTable = ({ title, description }: RestockRequestsTabl
   const pageSize = table.state.pagination.pageSize;
   const pageIndex = table.state.pagination.pageIndex;
   const pageCount = Math.max(table.getPageCount(), 1);
+  const selected = companyItems.find((item) => item.id === detailItem?.id) ?? null;
+
+  const handleCreate = (values: SupplyRequestFormValues) => {
+    if (!user) {
+      return;
+    }
+
+    const product = companyProducts.find((item) => item.id === values.productId);
+
+    if (!product) {
+      return;
+    }
+
+    const note = values.note.trim();
+    const matchedOrder = values.purposes.includes("order")
+      ? findOrderByNote(note, orders, user.companyId)
+      : undefined;
+
+    dispatch(
+      addRestockRequest({
+        id: crypto.randomUUID(),
+        productId: product.id,
+        sku: product.sku,
+        productName: product.name,
+        quantity: values.quantity,
+        note,
+        status: "New",
+        purposes: values.purposes,
+        orderId: matchedOrder?.id,
+        orderNumber: matchedOrder?.number,
+        requestedById: user.id,
+        requestedByName: user.name,
+        companyId: user.companyId,
+        companyName: user.companyName,
+        createdAt: new Date().toISOString(),
+      }),
+    );
+    setIsCreateOpen(false);
+  };
+
+  const canUpdateRequest = (request: RestockRequest) => {
+    if (!user) {
+      return false;
+    }
+
+    if (user.role === "Supply") {
+      return canSupplyAdvanceRestock(request.status);
+    }
+
+    if (user.role === "Storekeeper") {
+      return canReceiveRestock(request.status);
+    }
+
+    return false;
+  };
+
+  const handleAdvanceStatus = (request: RestockRequest) => {
+    const nextStatus = getNextRestockStatus(request.status);
+
+    if (!nextStatus || !user || !canUpdateRequest(request)) {
+      return;
+    }
+
+    dispatch(updateRestockStatus({ id: request.id, status: nextStatus }));
+
+    if (nextStatus === "Delivered") {
+      dispatch(
+        logOpsEvent({
+          companyId: request.companyId,
+          entityType: "restock",
+          entityId: request.id,
+          entityNumber: request.sku,
+          message: "Supplier delivery arrived at the dock",
+          actorId: user.id,
+          actorName: user.name,
+          notify: [
+            {
+              role: "Storekeeper",
+              title: "Goods waiting at the dock",
+              body: `${request.productName} is ready to receive`,
+              href: paths.warehouse(user.companyName),
+            },
+          ],
+        }),
+      );
+      return;
+    }
+
+    if (nextStatus !== "Received") {
+      dispatch(
+        logOpsEvent({
+          companyId: request.companyId,
+          entityType: "restock",
+          entityId: request.id,
+          entityNumber: request.sku,
+          message: `Restock marked as ${nextStatus}`,
+          actorId: user.id,
+          actorName: user.name,
+        }),
+      );
+      return;
+    }
+
+    dispatch(adjustInventoryQuantity({ id: request.productId, delta: request.quantity }));
+
+    if (request.purposes.includes("order") && request.orderId) {
+      const order = orders.find((item) => item.id === request.orderId);
+      const line = order?.items.find((item) => item.productId === request.productId);
+      const remaining = line ? Math.max(0, line.quantity - line.reservedQuantity) : 0;
+      const toReserve = Math.min(request.quantity, remaining);
+
+      if (toReserve > 0) {
+        dispatch(
+          reserveOrderItems({
+            orderId: request.orderId,
+            productId: request.productId,
+            quantity: toReserve,
+          }),
+        );
+        dispatch(adjustInventoryQuantity({ id: request.productId, delta: -toReserve }));
+      }
+    }
+
+    dispatch(
+      logOpsEvent({
+        companyId: request.companyId,
+        entityType: "restock",
+        entityId: request.id,
+        entityNumber: request.sku,
+        message: "Received into warehouse",
+        actorId: user.id,
+        actorName: user.name,
+        notify: request.orderNumber
+          ? [
+              {
+                role: "Staff",
+                title: "Stock received for an order",
+                body: `${request.productName} can now cover ${request.orderNumber}`,
+                href: paths.orders(user.companyName),
+              },
+            ]
+          : undefined,
+      }),
+    );
+  };
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-      {(title || description) && (
-        <Box>
-          {title && (
-            <Typography variant="h6" sx={{ fontWeight: 700, color: COLORS.text.primary, mb: 0.5 }}>
-              {title}
-            </Typography>
-          )}
-          {description && (
-            <Typography variant="body2" sx={{ color: COLORS.text.secondary }}>
-              {description}
-            </Typography>
-          )}
-        </Box>
-      )}
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 2,
+        }}
+      >
+        {(title || description) && (
+          <Box>
+            {title && (
+              <Typography variant="h6" sx={{ fontWeight: 700, color: COLORS.text.primary, mb: 0.5 }}>
+                {title}
+              </Typography>
+            )}
+            {description && (
+              <Typography variant="body2" sx={{ color: COLORS.text.secondary }}>
+                {description}
+              </Typography>
+            )}
+          </Box>
+        )}
+        {canCreate ? (
+          <Button
+            variant="contained"
+            onClick={() => setIsCreateOpen(true)}
+            sx={{
+              px: 2.5,
+              py: 1.1,
+              borderRadius: "10px",
+              textTransform: "none",
+              fontWeight: 600,
+              backgroundColor: COLORS.primary[600],
+              boxShadow: `0 4px 14px ${COLORS.ui.shadowStrong}`,
+              "&:hover": { backgroundColor: COLORS.primary[700] },
+            }}
+          >
+            Create request
+          </Button>
+        ) : null}
+      </Box>
 
       <Box
         sx={{
@@ -176,7 +400,7 @@ export const RestockRequestsTable = ({ title, description }: RestockRequestsTabl
                     colSpan={columns.length}
                     sx={{ py: 6, textAlign: "center", color: COLORS.text.muted }}
                   >
-                    No restock requests yet
+                    No {incomingOnly ? "incoming receipts" : "restock requests"} yet
                   </TableCell>
                 </TableRow>
               ) : (
@@ -184,7 +408,9 @@ export const RestockRequestsTable = ({ title, description }: RestockRequestsTabl
                   <TableRow
                     key={row.id}
                     hover
+                    onClick={() => setDetailItem(row.original)}
                     sx={{
+                      cursor: "pointer",
                       "&:last-of-type td": { borderBottom: 0 },
                       "& td": { borderBottomColor: COLORS.border.light },
                     }}
@@ -280,6 +506,19 @@ export const RestockRequestsTable = ({ title, description }: RestockRequestsTabl
           </Box>
         </Box>
       </Box>
+
+      <RestockDetailModal
+        request={selected}
+        canUpdateStatus={Boolean(selected && canUpdateRequest(selected))}
+        onClose={() => setDetailItem(null)}
+        onAdvanceStatus={handleAdvanceStatus}
+      />
+      <SupplyRequestFormModal
+        open={isCreateOpen}
+        products={companyProducts}
+        onClose={() => setIsCreateOpen(false)}
+        onSubmit={handleCreate}
+      />
     </Box>
   );
 };

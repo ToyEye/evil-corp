@@ -1,6 +1,7 @@
 import { dummyCompanies } from "./companies.dummy";
 import {
   inventoryItemsSchema,
+  ZONE_BY_CATEGORY,
   type InventoryCategory,
   type InventoryItem,
 } from "./inventory.schema";
@@ -13,22 +14,38 @@ type ItemDraft = {
   description: string;
   quantity: number;
   category: InventoryCategory;
+  price?: number;
+};
+
+const CATEGORY_PRICE: Record<InventoryCategory, number> = {
+  Packaging: 4.25,
+  "Spare parts": 32,
+  Consumables: 2.4,
+  Equipment: 145,
+  Safety: 19.5,
 };
 
 const toCompanyItems = (company: (typeof dummyCompanies)[number], drafts: ItemDraft[]) =>
-  drafts.map((draft, index) => ({
-    id: `${company.id}-item-${index + 1}`,
-    ...draft,
-    companyId: company.id,
-    companyName: company.name,
-  }));
+  drafts.map((draft, index) => {
+    const zone = ZONE_BY_CATEGORY[draft.category];
+
+    return {
+      id: `${company.id}-item-${index + 1}`,
+      ...draft,
+      price: draft.price ?? Number((CATEGORY_PRICE[draft.category] + index * 1.15).toFixed(2)),
+      zone,
+      bin: `${zone.slice(0, 1)}-${String(index + 1).padStart(2, "0")}`,
+      companyId: company.id,
+      companyName: company.name,
+    };
+  });
 
 const rapidRouteItems: ItemDraft[] = [
   {
     sku: "RR-PAL-001",
     name: "Euro pallet 120x80",
     description: "Reusable wooden euro pallet for outbound mixed loads.",
-    quantity: 148,
+    quantity: 136,
     category: "Packaging",
   },
   {
@@ -42,7 +59,7 @@ const rapidRouteItems: ItemDraft[] = [
     sku: "RR-TAPE-008",
     name: "Packing tape 48mm",
     description: "Clear acrylic packing tape, 66 m roll.",
-    quantity: 240,
+    quantity: 232,
     category: "Consumables",
   },
   {
@@ -77,7 +94,7 @@ const rapidRouteItems: ItemDraft[] = [
     sku: "RR-SCN-001",
     name: "Handheld barcode scanner",
     description: "USB barcode scanner for inbound checks.",
-    quantity: 11,
+    quantity: 0,
     category: "Equipment",
   },
   {
@@ -220,7 +237,7 @@ const peakStorageItems: ItemDraft[] = [
     sku: "PS-GLV-002",
     name: "Cold storage gloves",
     description: "Insulated gloves for chilled warehouse zones.",
-    quantity: 40,
+    quantity: 34,
     category: "Safety",
   },
   {

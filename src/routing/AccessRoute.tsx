@@ -17,6 +17,9 @@ const pagePaths = {
   suppliers: paths.suppliersDirectory,
   clients: paths.clients,
   deliveries: paths.deliveries,
+  orders: paths.orders,
+  invoices: paths.invoices,
+  support: paths.support,
 } as const;
 
 type AccessRouteProps = {

@@ -17,11 +17,16 @@ const ACCENTS = {
     background: COLORS.warning[50],
     color: COLORS.warning[700],
   },
+  success: {
+    background: COLORS.success[50],
+    color: COLORS.success[700],
+  },
 } as const;
 
 type DashboardStatCardProps = {
   label: string;
-  value: number;
+  value: number | string;
+  detail?: string;
   description: string;
   icon?: SvgIconComponent;
   accent?: keyof typeof ACCENTS;
@@ -30,6 +35,7 @@ type DashboardStatCardProps = {
 export const DashboardStatCard = ({
   label,
   value,
+  detail,
   description,
   icon: Icon,
   accent = "primary",
@@ -95,6 +101,20 @@ export const DashboardStatCard = ({
       >
         {value}
       </Typography>
+
+      {detail ? (
+        <Typography
+          sx={{
+            fontWeight: 700,
+            fontSize: "1.05rem",
+            lineHeight: 1.3,
+            color: tone.color,
+            overflowWrap: "anywhere",
+          }}
+        >
+          {detail}
+        </Typography>
+      ) : null}
 
       <Typography
         variant="body2"

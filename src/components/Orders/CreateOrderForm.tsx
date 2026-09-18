@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Controller, useFieldArray, useForm, type SubmitHandler } from "react-hook-form";
+import {
+  Controller,
+  useFieldArray,
+  useForm,
+  useWatch,
+  type SubmitHandler,
+} from "react-hook-form";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
@@ -13,117 +19,91 @@ import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import PlaylistAddOutlinedIcon from "@mui/icons-material/PlaylistAddOutlined";
 
-import {
-  getDeliveryStatusFromSchedule,
-  type DeliveryItem,
-} from "../../data/deliveries.schema";
+import { getOrderTotal } from "../../data/orders.schema";
 import { getCompanyNameForUser } from "../../data/users.dummy";
 import { paths } from "../../routing/routes";
 import { selectUser } from "../../store/auth/auth.slice";
 import { addClientAddress, selectClients } from "../../store/clients/clients.slice";
-import { addDelivery, selectDeliveries } from "../../store/deliveries/deliveries.slice";
 import {
   adjustInventoryQuantity,
   selectInventoryItems,
 } from "../../store/inventory/inventory.slice";
+import { addOrder, selectOrders } from "../../store/orders/orders.slice";
+import { logOpsEvent } from "../../store/ops/logOpsEvent";
 import { addRestockRequest } from "../../store/restock/restock.slice";
-import { selectUsers } from "../../store/users/users.slice";
 import { useAppDispatch } from "../../store/types";
 import { COLORS } from "../../theme/COLORS";
+import { formatMoney } from "../../utils/formatMoney";
 import { formFieldSx, submitButtonSx } from "../Forms/formStyles";
-import { DeliveryRestockPanel } from "./DeliveryRestockPanel";
+import { OrderRestockPanel } from "./OrderRestockPanel";
 import {
   getShortageSignature,
-  nextDeliveryNumber,
-  splitDeliveryLines,
-  type SplitDeliveryLine,
-} from "./deliveryForm.utils";
+  nextOrderNumber,
+  splitOrderLines,
+  type SplitOrderLine,
+} from "./orderForm.utils";
 
-type DeliveryFormValues = {
+type OrderFormValues = {
   clientId: string;
-  driverId: string;
   addressId: string;
-  dispatchAt: string;
-  deliverBy: string;
   notes: string;
   items: { productId: string; quantity: number }[];
 };
 
-const emptyValues: DeliveryFormValues = {
+const emptyValues: OrderFormValues = {
   clientId: "",
-  driverId: "",
   addressId: "",
-  dispatchAt: "",
-  deliverBy: "",
   notes: "",
   items: [{ productId: "", quantity: 1 }],
 };
 
-const toIso = (value: string) => {
-  if (!value) {
-    return undefined;
-  }
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
-};
-
-export const CreateDeliveryForm = () => {
+export const CreateOrderForm = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const user = useSelector(selectUser);
   const clients = useSelector(selectClients);
-  const users = useSelector(selectUsers);
   const inventory = useSelector(selectInventoryItems);
-  const deliveries = useSelector(selectDeliveries);
+  const orders = useSelector(selectOrders);
   const [newAddress, setNewAddress] = useState("");
   const [addressError, setAddressError] = useState<string>();
   const [restockOpen, setRestockOpen] = useState(false);
   const [restockNote, setRestockNote] = useState("");
-  const [restockDraft, setRestockDraft] = useState<SplitDeliveryLine[]>([]);
+  const [restockDraft, setRestockDraft] = useState<SplitOrderLine[]>([]);
   const [sentShortageSignature, setSentShortageSignature] = useState("");
 
   const companyClients = useMemo(
     () => clients.filter((item) => item.companyId === user?.companyId),
     [clients, user?.companyId],
   );
-  const drivers = useMemo(
-    () =>
-      users.filter(
-        (item) => item.companyId === user?.companyId && item.role === "driver",
-      ),
-    [user?.companyId, users],
-  );
   const companyInventory = useMemo(
     () => inventory.filter((item) => item.companyId === user?.companyId),
     [inventory, user?.companyId],
-  );
-  const stock = useMemo(
-    () => companyInventory.filter((item) => item.quantity > 0),
-    [companyInventory],
   );
 
   const {
     control,
     register,
     handleSubmit,
-    watch,
     setValue,
     getValues,
     trigger,
     formState: { errors, isSubmitting },
-  } = useForm<DeliveryFormValues>({
+  } = useForm<OrderFormValues>({
     defaultValues: emptyValues,
     mode: "onChange",
     reValidateMode: "onChange",
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
-  const clientId = watch("clientId");
-  const selectedItems = watch("items");
+  const formValues = useWatch({ control, defaultValue: emptyValues });
+  const clientId = formValues.clientId ?? "";
+  const selectedItems = (formValues.items ?? emptyValues.items).map((line) => ({
+    productId: line.productId ?? "",
+    quantity: Number(line.quantity) || 0,
+  }));
   const selectedClient = companyClients.find((item) => item.id === clientId);
-  const { inStock, backorder } = useMemo(
-    () => splitDeliveryLines(selectedItems, companyInventory),
+  const { items: splitItems, backorder } = useMemo(
+    () => splitOrderLines(selectedItems, companyInventory),
     [companyInventory, selectedItems],
   );
   const shortageSignature = getShortageSignature(backorder);
@@ -144,6 +124,7 @@ export const CreateDeliveryForm = () => {
             Number(draft.quantity) === Number(item.quantity),
         ),
       ));
+  const orderTotal = getOrderTotal(splitItems);
 
   useEffect(() => {
     const client = companyClients.find((item) => item.id === clientId);
@@ -164,7 +145,7 @@ export const CreateDeliveryForm = () => {
       const byId = new Map(backorder.map((item) => [item.productId, item]));
       const next = prev
         .map((item) => byId.get(item.productId) ?? null)
-        .filter((item): item is SplitDeliveryLine => Boolean(item));
+        .filter((item): item is SplitOrderLine => Boolean(item));
       const unchanged =
         next.length === prev.length &&
         next.every(
@@ -217,7 +198,7 @@ export const CreateDeliveryForm = () => {
     hasProduct &&
     quantitiesValid &&
     restockCovered &&
-    (inStock.length > 0 || backorder.length > 0) &&
+    splitItems.length > 0 &&
     !isSubmitting;
 
   useEffect(() => {
@@ -227,6 +208,20 @@ export const CreateDeliveryForm = () => {
       }
     });
   }, [selectedItems, trigger]);
+
+  const updateItemLine = (
+    index: number,
+    patch: Partial<{ productId: string; quantity: number }>,
+  ) => {
+    const items = getValues("items").map((line, lineIndex) =>
+      lineIndex === index ? { ...line, ...patch } : { ...line },
+    );
+    setValue("items", items, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
+  };
 
   const handleAddAddress = () => {
     const line = newAddress.trim();
@@ -265,6 +260,9 @@ export const CreateDeliveryForm = () => {
             sku: product.sku,
             name: product.name,
             quantity: shortageQty,
+            unitPrice: product.price,
+            reservedQuantity: 0,
+            pickedQuantity: 0,
           }
         : null);
 
@@ -280,24 +278,57 @@ export const CreateDeliveryForm = () => {
     });
   };
 
-  const handleSendRestock = () => {
-    if (!user || !restockCanSend) {
+  const handleConfirmShortage = () => {
+    if (!restockCanSend) {
       return;
     }
 
-    const note =
-      restockNote.trim() ||
-      (selectedClient ? `Shortage for delivery to ${selectedClient.name}` : "");
+    setSentShortageSignature(getShortageSignature(restockDraft));
+  };
 
-    const previousKeys = new Set(sentShortageSignature.split("|").filter(Boolean));
+  const onSubmit: SubmitHandler<OrderFormValues> = (values) => {
+    if (!user || !restockCovered) {
+      return;
+    }
 
-    for (const item of restockDraft) {
-      const key = `${item.productId}:${item.quantity}`;
+    const client = companyClients.find((item) => item.id === values.clientId);
+    const address = client?.addresses.find((item) => item.id === values.addressId);
+    const split = splitOrderLines(values.items, companyInventory);
 
-      if (previousKeys.has(key)) {
-        continue;
+    if (!client || split.items.length === 0) {
+      return;
+    }
+
+    const orderId = crypto.randomUUID();
+    const number = nextOrderNumber(orders, user.companyId);
+    const notes = values.notes.trim();
+    const createdAt = new Date().toISOString();
+
+    dispatch(
+      addOrder({
+        id: orderId,
+        number,
+        clientId: client.id,
+        clientName: client.name,
+        addressId: address?.id,
+        destination: address?.line,
+        notes,
+        status: "New",
+        fulfillmentStatus: "Waiting",
+        items: split.items,
+        companyId: user.companyId,
+        companyName: user.companyName,
+        createdAt,
+      }),
+    );
+
+    for (const line of split.items) {
+      if (line.reservedQuantity > 0) {
+        dispatch(adjustInventoryQuantity({ id: line.productId, delta: -line.reservedQuantity }));
       }
+    }
 
+    for (const item of split.backorder) {
       dispatch(
         addRestockRequest({
           id: crypto.randomUUID(),
@@ -305,93 +336,55 @@ export const CreateDeliveryForm = () => {
           sku: item.sku,
           productName: item.name,
           quantity: item.quantity,
-          note,
+          note:
+            restockNote.trim() ||
+            (selectedClient ? `Shortage for order ${number} to ${selectedClient.name}` : number),
+          status: "New",
+          purposes: ["order"],
+          orderId,
+          orderNumber: number,
           requestedById: user.id,
           requestedByName: user.name,
-          companyId: user.companyId,
-          companyName: user.companyName,
-          createdAt: new Date().toISOString(),
-        }),
-      );
-    }
-
-    setSentShortageSignature(getShortageSignature(restockDraft));
-  };
-
-  const onSubmit: SubmitHandler<DeliveryFormValues> = (values) => {
-    if (!user || !restockCovered) {
-      return;
-    }
-
-    const client = companyClients.find((item) => item.id === values.clientId);
-    const driver = drivers.find((item) => item.id === values.driverId);
-    const address = client?.addresses.find((item) => item.id === values.addressId);
-    const split = splitDeliveryLines(values.items, companyInventory);
-
-    if (!client || (split.inStock.length === 0 && split.backorder.length === 0)) {
-      return;
-    }
-
-    const dispatchAt = toIso(values.dispatchAt);
-    const deliverBy = toIso(values.deliverBy);
-    const notes = values.notes.trim();
-    const createdAt = new Date().toISOString();
-    let numberOffset = 0;
-
-    const createDelivery = (
-      items: DeliveryItem[],
-      options: {
-        includeSchedule: boolean;
-        reservesStock: boolean;
-        extraNotes?: string;
-      },
-    ) => {
-      const number = nextDeliveryNumber(deliveries, user.companyId, numberOffset);
-      numberOffset += 1;
-
-      dispatch(
-        addDelivery({
-          id: crypto.randomUUID(),
-          number,
-          clientId: client.id,
-          clientName: client.name,
-          driverId: options.includeSchedule ? driver?.id : undefined,
-          driverName: options.includeSchedule ? driver?.name : undefined,
-          addressId: address?.id,
-          destination: address?.line,
-          dispatchAt: options.includeSchedule ? dispatchAt : undefined,
-          deliverBy: options.includeSchedule ? deliverBy : undefined,
-          notes: options.extraNotes ?? notes,
-          status: getDeliveryStatusFromSchedule(
-            options.includeSchedule ? dispatchAt : undefined,
-            options.includeSchedule ? deliverBy : undefined,
-          ),
-          items,
-          reservesStock: options.reservesStock,
           companyId: user.companyId,
           companyName: user.companyName,
           createdAt,
         }),
       );
-    };
-
-    if (split.inStock.length > 0) {
-      createDelivery(split.inStock, { includeSchedule: true, reservesStock: true });
-
-      for (const line of split.inStock) {
-        dispatch(adjustInventoryQuantity({ id: line.productId, delta: -line.quantity }));
-      }
     }
 
-    if (split.backorder.length > 0) {
-      createDelivery(split.backorder, {
-        includeSchedule: false,
-        reservesStock: false,
-        extraNotes: [notes, "Awaiting restock"].filter(Boolean).join("\n"),
-      });
-    }
+    dispatch(
+      logOpsEvent({
+        companyId: user.companyId,
+        entityType: "order",
+        entityId: orderId,
+        entityNumber: number,
+        message:
+          split.backorder.length > 0
+            ? "Order created with a stock shortage"
+            : "Order created",
+        actorId: user.id,
+        actorName: user.name,
+        notify:
+          split.backorder.length > 0
+            ? [
+                {
+                  role: "Supply",
+                  title: "Shortage on a new order",
+                  body: `${number} needs restock before it can ship`,
+                  href: paths.suppliersRequests(user.companyName),
+                },
+                {
+                  role: "Storekeeper",
+                  title: "Order waiting for stock",
+                  body: `${number} is not fully reserved`,
+                  href: paths.warehouse(user.companyName),
+                },
+              ]
+            : undefined,
+      }),
+    );
 
-    navigate(paths.deliveries(getCompanyNameForUser(user)));
+    navigate(paths.orders(getCompanyNameForUser(user)));
   };
 
   return (
@@ -488,44 +481,6 @@ export const CreateDeliveryForm = () => {
           </Button>
         </Box>
 
-        <Controller
-          name="driverId"
-          control={control}
-          render={({ field }) => (
-            <TextField
-              {...field}
-              value={field.value ?? ""}
-              label="Driver"
-              select
-              fullWidth
-              sx={formFieldSx}
-            >
-              <MenuItem value="">Unassigned</MenuItem>
-              {drivers.map((driver) => (
-                <MenuItem key={driver.id} value={driver.id}>
-                  {driver.name}
-                </MenuItem>
-              ))}
-            </TextField>
-          )}
-        />
-
-        <TextField
-          {...register("dispatchAt")}
-          label="Planned dispatch"
-          type="datetime-local"
-          fullWidth
-          slotProps={{ inputLabel: { shrink: true } }}
-          sx={formFieldSx}
-        />
-        <TextField
-          {...register("deliverBy")}
-          label="Planned delivery"
-          type="datetime-local"
-          fullWidth
-          slotProps={{ inputLabel: { shrink: true } }}
-          sx={formFieldSx}
-        />
         <TextField
           {...register("notes")}
           label="Notes"
@@ -553,6 +508,9 @@ export const CreateDeliveryForm = () => {
               const productId = selectedItems[index]?.productId ?? "";
               const quantity = Number(selectedItems[index]?.quantity);
               const available = remainingStock(productId, index);
+              const product = companyInventory.find((item) => item.id === productId);
+              const unitPrice = product?.price ?? 0;
+              const lineTotal = Number.isFinite(quantity) ? quantity * unitPrice : 0;
               const lineShortage = productId ? Math.max(0, quantity - available) : 0;
               const inDraft = restockDraft.some((item) => item.productId === productId);
 
@@ -569,43 +527,62 @@ export const CreateDeliveryForm = () => {
                         {...field}
                         value={field.value ?? ""}
                         onChange={(event) => {
-                          field.onChange(event);
-                          void trigger(`items.${index}.quantity`);
+                          updateItemLine(index, { productId: event.target.value });
                         }}
                         label="Product"
                         select
                         sx={{ ...formFieldSx, flex: 1, minWidth: 220 }}
                       >
                         <MenuItem value="">Select a product</MenuItem>
-                        {stock.map((item) => (
+                        {companyInventory.map((item) => (
                           <MenuItem key={item.id} value={item.id}>
-                            {item.name} · {item.quantity} in stock
+                            {item.name} · {item.quantity} in stock · {formatMoney(item.price)}
                           </MenuItem>
                         ))}
                       </TextField>
                     )}
                   />
-                  <TextField
-                    {...register(`items.${index}.quantity`, {
-                      valueAsNumber: true,
+                  <Controller
+                    name={`items.${index}.quantity`}
+                    control={control}
+                    rules={{
                       validate: (value) =>
-                        quantityError(getValues(`items.${index}.productId`), Number(value)),
-                      onChange: () => {
-                        void trigger(`items.${index}.quantity`);
-                      },
-                    })}
-                    label="Qty"
-                    type="number"
-                    sx={{ ...formFieldSx, width: 120 }}
-                    error={Boolean(errors.items?.[index]?.quantity) || lineShortage > 0}
-                    helperText={
-                      errors.items?.[index]?.quantity?.message ??
-                      (lineShortage > 0
-                        ? `Only ${available} in stock · ${lineShortage} to restock`
-                        : undefined)
-                    }
-                    slotProps={{ htmlInput: { min: 1 } }}
+                        quantityError(
+                          getValues(`items.${index}.productId`),
+                          Number(value),
+                        ),
+                    }}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        value={field.value ?? 1}
+                        onChange={(event) => {
+                          updateItemLine(index, { quantity: Number(event.target.value) });
+                        }}
+                        label="Qty"
+                        type="number"
+                        sx={{ ...formFieldSx, width: 120 }}
+                        error={Boolean(errors.items?.[index]?.quantity) || lineShortage > 0}
+                        helperText={
+                          errors.items?.[index]?.quantity?.message ??
+                          (lineShortage > 0
+                            ? `Only ${available} in stock · ${lineShortage} to restock`
+                            : undefined)
+                        }
+                        slotProps={{ htmlInput: { min: 1 } }}
+                      />
+                    )}
                   />
+                  {productId ? (
+                    <Box sx={{ minWidth: 150, pt: 1 }}>
+                      <Typography variant="body2" sx={{ color: COLORS.text.tertiary }}>
+                        {formatMoney(unitPrice)} / unit
+                      </Typography>
+                      <Typography sx={{ fontWeight: 600, color: COLORS.text.primary }}>
+                        {formatMoney(lineTotal)}
+                      </Typography>
+                    </Box>
+                  ) : null}
                   {lineShortage > 0 ? (
                     <Tooltip title="Add missing quantity to supply request">
                       <IconButton
@@ -649,17 +626,33 @@ export const CreateDeliveryForm = () => {
           </Button>
         </Box>
 
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            pt: 0.5,
+          }}
+        >
+          <Typography variant="body2" sx={{ color: COLORS.text.tertiary }}>
+            Total
+          </Typography>
+          <Typography sx={{ fontWeight: 700, color: COLORS.text.primary }}>
+            {formatMoney(orderTotal)}
+          </Typography>
+        </Box>
+
         <Button type="submit" variant="contained" disabled={!canSubmit} sx={submitButtonSx}>
-          Create delivery
+          Create order
         </Button>
         {backorder.length > 0 && !restockCovered ? (
           <Typography variant="body2" sx={{ color: COLORS.text.tertiary, mt: -1 }}>
-            Send the supply request to enable Create delivery
+            Confirm the supply request to enable Create order
           </Typography>
         ) : null}
       </Box>
 
-      <DeliveryRestockPanel
+      <OrderRestockPanel
         open={restockOpen}
         items={restockDraft}
         note={restockNote}
@@ -669,7 +662,7 @@ export const CreateDeliveryForm = () => {
         onRemove={(productId) =>
           setRestockDraft((prev) => prev.filter((item) => item.productId !== productId))
         }
-        onSend={handleSendRestock}
+        onSend={handleConfirmShortage}
         onClose={() => setRestockOpen(false)}
       />
     </Box>

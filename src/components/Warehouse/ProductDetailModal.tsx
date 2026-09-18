@@ -10,6 +10,7 @@ import CloseIcon from "@mui/icons-material/Close";
 
 import type { InventoryItem } from "../../data/inventory.schema";
 import { COLORS } from "../../theme/COLORS";
+import { formatMoney } from "../../utils/formatMoney";
 import { StockQuantityChip } from "./StockQuantityChip";
 
 type ProductDetailModalProps = {
@@ -105,6 +106,14 @@ export const ProductDetailModal = ({
               />
               <StockQuantityChip quantity={item?.quantity ?? 0} />
             </Box>
+
+            <Typography variant="body1" sx={{ color: COLORS.text.secondary, lineHeight: 1.6 }}>
+              Location {item?.zone} · {item?.bin}
+            </Typography>
+
+            <Typography variant="body1" sx={{ color: COLORS.text.secondary, lineHeight: 1.6 }}>
+              Unit price {formatMoney(item?.price ?? 0)}
+            </Typography>
 
             <Typography variant="body1" sx={{ color: COLORS.text.secondary, lineHeight: 1.6 }}>
               {item?.description}

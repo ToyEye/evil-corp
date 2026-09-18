@@ -5,8 +5,13 @@ import { useNavigate } from "react-router-dom";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import Divider from "@mui/material/Divider";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
+import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
+import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 
 import { dummyUsers } from "../../data/users.dummy";
 import { selectUser, updateCurrentUser } from "../../store/auth/auth.slice";
@@ -14,6 +19,7 @@ import {
   selectCompanies,
   updateCompany,
 } from "../../store/companies/companies.slice";
+import { selectThemeMode, setThemeMode } from "../../store/theme/theme.slice";
 import { useAppDispatch } from "../../store/types";
 import { COLORS } from "../../theme/COLORS";
 import { paths } from "../../routing/routes";
@@ -32,13 +38,14 @@ type AccountFormValues = {
   companyName: string;
 };
 
-const canEditCompany = (role: string | undefined) => role === "SEO" || role === "admin";
+const canEditCompany = (role: string | undefined) => role === "SEO" || role === "Admin";
 
 export const AccountSettingsForm = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const user = useSelector(selectUser);
   const companies = useSelector(selectCompanies);
+  const themeMode = useSelector(selectThemeMode);
   const company = companies.find((item) => item.id === user?.companyId);
   const showCompanyFields = canEditCompany(user?.role);
 
@@ -322,6 +329,67 @@ export const AccountSettingsForm = () => {
           </Box>
         </>
       )}
+
+      <Divider sx={{ borderColor: COLORS.border.light }} />
+
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 2,
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: "10px",
+              backgroundColor: COLORS.primary[50],
+              color: COLORS.primary[700],
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            {themeMode === "dark" ? (
+              <DarkModeRoundedIcon fontSize="small" />
+            ) : (
+              <LightModeRoundedIcon fontSize="small" />
+            )}
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography sx={{ fontWeight: 700, color: COLORS.text.primary }}>
+              Dark theme
+            </Typography>
+            <Typography variant="body2" sx={{ color: COLORS.text.tertiary }}>
+              Use a darker color scheme across the app
+            </Typography>
+          </Box>
+        </Box>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={themeMode === "dark"}
+              onChange={(_, checked) => dispatch(setThemeMode(checked ? "dark" : "light"))}
+              slotProps={{ input: { "aria-label": "Toggle dark theme" } }}
+            />
+          }
+          label={themeMode === "dark" ? "On" : "Off"}
+          labelPlacement="start"
+          sx={{
+            mr: 0,
+            flexShrink: 0,
+            "& .MuiFormControlLabel-label": {
+              fontWeight: 600,
+              color: COLORS.text.secondary,
+              mr: 1,
+            },
+          }}
+        />
+      </Box>
 
       {saved && (
         <Typography variant="body2" sx={{ color: COLORS.success.text }}>

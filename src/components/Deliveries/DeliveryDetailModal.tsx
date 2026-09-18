@@ -13,24 +13,34 @@ import CloseIcon from "@mui/icons-material/Close";
 
 import {
   canEditDeliveryAssignment,
-  hasDeliverySchedule,
+  getDeliveryLoad,
+  isDeliveryTerminal,
   type Delivery,
+  type DeliveryProof,
+  type FailureReason,
 } from "../../data/deliveries.schema";
+import { getVehicleRemainingUnits } from "../../data/fleet.utils";
 import { selectUser } from "../../store/auth/auth.slice";
-import { selectClients } from "../../store/clients/clients.slice";
+import { addClientAddress, selectClients } from "../../store/clients/clients.slice";
 import {
+  selectDeliveries,
+  updateDeliveryAddress,
   updateDeliveryDriver,
   updateDeliverySchedule,
-  updateDeliveryStatus,
+  updateDeliveryVehicle,
 } from "../../store/deliveries/deliveries.slice";
-import {
-  adjustInventoryQuantity,
-} from "../../store/inventory/inventory.slice";
+import { progressDelivery } from "../../store/deliveries/progressDelivery";
+import { logOpsEvent } from "../../store/ops/logOpsEvent";
 import { selectUsers } from "../../store/users/users.slice";
+import { selectVehicles } from "../../store/vehicles/vehicles.slice";
 import { useAppDispatch } from "../../store/types";
 import { COLORS } from "../../theme/COLORS";
+import { formatDateTime } from "../../utils/formatDateTime";
+import { paths } from "../../routing/routes";
 import { formFieldSx } from "../Forms/formStyles";
+import { ActivityTimeline } from "../Activity/ActivityTimeline";
 import { DeliveryStatusChip } from "./DeliveryStatusChip";
+import { ProofOfDeliveryForm } from "./ProofOfDeliveryForm";
 
 type DeliveryDetailModalProps = {
   delivery: Delivery | null;
@@ -38,26 +48,6 @@ type DeliveryDetailModalProps = {
 };
 
 const pad = (value: number) => String(value).padStart(2, "0");
-
-const formatDateTime = (value?: string) => {
-  if (!value) {
-    return "—";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-};
 
 const toDatetimeLocal = (value?: string) => {
   if (!value) {
@@ -106,86 +96,180 @@ export const DeliveryDetailModal = ({ delivery, onClose }: DeliveryDetailModalPr
   const user = useSelector(selectUser);
   const clients = useSelector(selectClients);
   const users = useSelector(selectUsers);
+  const vehicles = useSelector(selectVehicles);
+  const deliveries = useSelector(selectDeliveries);
   const client = clients.find((item) => item.id === delivery?.clientId);
   const canManage = user?.role === "Staff";
+  const isDriver = user?.role === "Driver" && user.id === delivery?.driverId;
   const isOpen = Boolean(delivery);
-  const canUpdate =
-    canManage &&
-    delivery &&
-    delivery.status !== "Canceled" &&
-    delivery.status !== "Done";
+  const canUpdate = Boolean(delivery && !isDeliveryTerminal(delivery.status) && (canManage || isDriver));
   const canEditAssignment =
     canManage && Boolean(delivery && canEditDeliveryAssignment(delivery.status));
   const drivers = useMemo(
     () =>
       users.filter(
-        (item) => item.companyId === delivery?.companyId && item.role === "driver",
+        (item) => item.companyId === delivery?.companyId && item.role === "Driver",
       ),
     [delivery?.companyId, users],
   );
-  const [dispatchAt, setDispatchAt] = useState("");
+  const companyVehicles = useMemo(
+    () => vehicles.filter((item) => item.companyId === delivery?.companyId),
+    [delivery?.companyId, vehicles],
+  );
   const [deliverBy, setDeliverBy] = useState("");
   const [scheduleError, setScheduleError] = useState<string>();
-  const hasDraftSchedule = hasDeliverySchedule(toIso(dispatchAt), toIso(deliverBy));
+  const [newAddress, setNewAddress] = useState("");
+  const [addressError, setAddressError] = useState<string>();
+  const [proofMode, setProofMode] = useState<"done" | "failed" | null>(null);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const hasDraftSchedule = Boolean(toIso(deliverBy));
+  const isScheduleDirty =
+    Boolean(delivery) && deliverBy !== toDatetimeLocal(delivery?.deliverBy);
 
   useEffect(() => {
-    setDispatchAt(toDatetimeLocal(delivery?.dispatchAt));
     setDeliverBy(toDatetimeLocal(delivery?.deliverBy));
     setScheduleError(undefined);
-  }, [delivery?.id, delivery?.dispatchAt, delivery?.deliverBy]);
-
-  const restoreStock = (item: Delivery) => {
-    if (!item.reservesStock) {
-      return;
-    }
-
-    for (const line of item.items) {
-      dispatch(adjustInventoryQuantity({ id: line.productId, delta: line.quantity }));
-    }
-  };
+    setNewAddress("");
+    setAddressError(undefined);
+    setProofMode(null);
+    setConfirmCancel(false);
+  }, [delivery?.id, delivery?.deliverBy]);
 
   const saveSchedule = () => {
     if (!delivery) {
       return false;
     }
 
-    const nextDispatchAt = toIso(dispatchAt);
     const nextDeliverBy = toIso(deliverBy);
 
-    if (!hasDeliverySchedule(nextDispatchAt, nextDeliverBy)) {
-      setScheduleError("Set a planned dispatch or delivery date");
+    if (!nextDeliverBy) {
+      setScheduleError("Set a planned delivery date");
       return false;
     }
 
     dispatch(
       updateDeliverySchedule({
         id: delivery.id,
-        dispatchAt: nextDispatchAt,
         deliverBy: nextDeliverBy,
       }),
     );
     setScheduleError(undefined);
+
+    if (user && nextDeliverBy !== delivery.deliverBy) {
+      dispatch(
+        logOpsEvent({
+          companyId: delivery.companyId,
+          entityType: "delivery",
+          entityId: delivery.id,
+          entityNumber: delivery.number,
+          message: "Planned delivery date updated",
+          actorId: user.id,
+          actorName: user.name,
+        }),
+      );
+    }
+
     return true;
   };
 
-  const handleStatus = (status: Delivery["status"]) => {
+  const handleAddressChange = (addressId: string) => {
+    if (!delivery || !user || !client) {
+      return;
+    }
+
+    const address = client.addresses.find((item) => item.id === addressId);
+
+    if (!address) {
+      return;
+    }
+
+    dispatch(
+      updateDeliveryAddress({
+        id: delivery.id,
+        addressId: address.id,
+        destination: address.line,
+        lat: address.lat,
+        lng: address.lng,
+      }),
+    );
+    dispatch(
+      logOpsEvent({
+        companyId: delivery.companyId,
+        entityType: "delivery",
+        entityId: delivery.id,
+        entityNumber: delivery.number,
+        message: `Destination changed to ${address.line}`,
+        actorId: user.id,
+        actorName: user.name,
+      }),
+    );
+  };
+
+  const handleAddAddress = () => {
+    const line = newAddress.trim();
+
+    if (!delivery || !client) {
+      setAddressError("Client is missing");
+      return;
+    }
+
+    if (!line) {
+      setAddressError("Address is required");
+      return;
+    }
+
+    const address = { id: crypto.randomUUID(), line };
+    dispatch(addClientAddress({ clientId: client.id, address }));
+    dispatch(
+      updateDeliveryAddress({
+        id: delivery.id,
+        addressId: address.id,
+        destination: address.line,
+      }),
+    );
+    setNewAddress("");
+    setAddressError(undefined);
+
+    if (user) {
+      dispatch(
+        logOpsEvent({
+          companyId: delivery.companyId,
+          entityType: "delivery",
+          entityId: delivery.id,
+          entityNumber: delivery.number,
+          message: `Destination changed to ${address.line}`,
+          actorId: user.id,
+          actorName: user.name,
+        }),
+      );
+    }
+  };
+
+  const handleStatus = (
+    status: Delivery["status"],
+    extras?: { proof?: DeliveryProof; failureReason?: FailureReason },
+  ) => {
     if (!delivery) {
       return;
     }
 
-    if (status === "Canceled") {
-      restoreStock(delivery);
-    }
-
-    if (status === "In transit" && !saveSchedule()) {
+    if (canManage && status === "In transit" && !saveSchedule()) {
       return;
     }
 
-    dispatch(updateDeliveryStatus({ id: delivery.id, status }));
+    dispatch(
+      progressDelivery({
+        deliveryId: delivery.id,
+        status,
+        proof: extras?.proof,
+        failureReason: extras?.failureReason,
+      }),
+    );
+    setProofMode(null);
   };
 
   const handleDriverChange = (driverId: string) => {
-    if (!delivery) {
+    if (!delivery || !user) {
       return;
     }
 
@@ -198,6 +282,66 @@ export const DeliveryDetailModal = ({ delivery, onClose }: DeliveryDetailModalPr
         driverName: driver?.name,
       }),
     );
+
+    if (driver) {
+      dispatch(
+        logOpsEvent({
+          companyId: delivery.companyId,
+          entityType: "delivery",
+          entityId: delivery.id,
+          entityNumber: delivery.number,
+          message: `Assigned to ${driver.name}`,
+          actorId: user.id,
+          actorName: user.name,
+          notify: [
+            {
+              userId: driver.id,
+              title: "New trip assigned",
+              body: `${delivery.number} to ${delivery.clientName}`,
+              href: paths.deliveries(user.companyName),
+            },
+          ],
+        }),
+      );
+    }
+  };
+
+  const handleVehicleChange = (vehicleId: string) => {
+    if (!delivery || !user) {
+      return;
+    }
+
+    const vehicle = companyVehicles.find((item) => item.id === vehicleId);
+    const remaining = vehicle
+      ? getVehicleRemainingUnits(vehicle, deliveries, [delivery.id])
+      : 0;
+    const load = getDeliveryLoad(delivery);
+
+    if (vehicle && load > remaining) {
+      return;
+    }
+
+    dispatch(
+      updateDeliveryVehicle({
+        id: delivery.id,
+        vehicleId: vehicle?.id,
+        vehicleName: vehicle ? `${vehicle.plate} · ${vehicle.name}` : undefined,
+      }),
+    );
+
+    if (vehicle) {
+      dispatch(
+        logOpsEvent({
+          companyId: delivery.companyId,
+          entityType: "delivery",
+          entityId: delivery.id,
+          entityNumber: delivery.number,
+          message: `Assigned vehicle ${vehicle.plate}`,
+          actorId: user.id,
+          actorName: user.name,
+        }),
+      );
+    }
   };
 
   return (
@@ -267,6 +411,9 @@ export const DeliveryDetailModal = ({ delivery, onClose }: DeliveryDetailModalPr
           {delivery ? (
             <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2 }}>
               <DeliveryStatusChip status={delivery.status} />
+              {delivery.orderNumber ? (
+                <DetailBlock label="Order" value={delivery.orderNumber} />
+              ) : null}
 
               {canEditAssignment ? (
                 <TextField
@@ -287,28 +434,108 @@ export const DeliveryDetailModal = ({ delivery, onClose }: DeliveryDetailModalPr
               ) : (
                 <DetailBlock label="Driver" value={delivery.driverName || "—"} />
               )}
-              <DetailBlock label="Destination" value={delivery.destination || "—"} />
+              {delivery.routeNumber ? (
+                <DetailBlock
+                  label="Route"
+                  value={`${delivery.routeNumber} · stop ${(delivery.stopIndex ?? 0) + 1}`}
+                />
+              ) : null}
+              {canEditAssignment ? (
+                <TextField
+                  label="Vehicle"
+                  select
+                  fullWidth
+                  value={delivery.vehicleId ?? ""}
+                  onChange={(event) => handleVehicleChange(event.target.value)}
+                  helperText={
+                    delivery.vehicleId
+                      ? `${getDeliveryLoad(delivery)} units on this stop`
+                      : "Optional"
+                  }
+                  sx={formFieldSx}
+                >
+                  <MenuItem value="">Unassigned</MenuItem>
+                  {companyVehicles.map((vehicle) => {
+                    const remaining = getVehicleRemainingUnits(vehicle, deliveries, [delivery.id]);
+                    const load = getDeliveryLoad(delivery);
+                    const tooHeavy = load > remaining;
+
+                    return (
+                      <MenuItem key={vehicle.id} value={vehicle.id} disabled={tooHeavy}>
+                        {vehicle.plate} · {vehicle.name} ({remaining} left
+                        {tooHeavy ? ", over capacity" : ""})
+                      </MenuItem>
+                    );
+                  })}
+                </TextField>
+              ) : (
+                <DetailBlock label="Vehicle" value={delivery.vehicleName || "—"} />
+              )}
               {canEditAssignment ? (
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   <TextField
-                    label="Planned dispatch"
-                    type="datetime-local"
-                    value={dispatchAt}
-                    onChange={(event) => {
-                      setDispatchAt(event.target.value);
-                      setScheduleError(undefined);
-                    }}
+                    label="Delivery address"
+                    select
                     fullWidth
-                    slotProps={{ inputLabel: { shrink: true } }}
+                    value={delivery.addressId ?? ""}
+                    onChange={(event) => handleAddressChange(event.target.value)}
                     sx={formFieldSx}
-                  />
+                  >
+                    <MenuItem value="">Select an address</MenuItem>
+                    {(client?.addresses ?? []).map((address) => (
+                      <MenuItem key={address.id} value={address.id}>
+                        {address.line}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
+                    <TextField
+                      label="New address"
+                      value={newAddress}
+                      onChange={(event) => {
+                        setNewAddress(event.target.value);
+                        setAddressError(undefined);
+                      }}
+                      fullWidth
+                      error={Boolean(addressError)}
+                      helperText={addressError}
+                      sx={formFieldSx}
+                    />
+                    <Button
+                      type="button"
+                      variant="outlined"
+                      onClick={handleAddAddress}
+                      sx={{
+                        height: 56,
+                        borderRadius: "10px",
+                        textTransform: "none",
+                        fontWeight: 600,
+                        whiteSpace: "nowrap",
+                        color: COLORS.text.secondary,
+                        borderColor: COLORS.border.default,
+                      }}
+                    >
+                      Add address
+                    </Button>
+                  </Box>
+                </Box>
+              ) : (
+                <DetailBlock label="Destination" value={delivery.destination || "—"} />
+              )}
+              {canEditAssignment ? (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   <TextField
-                    label="Planned delivery"
+                    label="Delivery date"
                     type="datetime-local"
                     value={deliverBy}
                     onChange={(event) => {
                       setDeliverBy(event.target.value);
                       setScheduleError(undefined);
+                    }}
+                    onBlur={() => {
+                      if (isScheduleDirty) {
+                        saveSchedule();
+                      }
                     }}
                     fullWidth
                     error={Boolean(scheduleError)}
@@ -316,32 +543,34 @@ export const DeliveryDetailModal = ({ delivery, onClose }: DeliveryDetailModalPr
                     slotProps={{ inputLabel: { shrink: true } }}
                     sx={formFieldSx}
                   />
-                  <Button
-                    variant="outlined"
-                    onClick={() => {
-                      saveSchedule();
-                    }}
-                    sx={{
-                      alignSelf: "flex-start",
-                      textTransform: "none",
-                      fontWeight: 600,
-                      borderRadius: "10px",
-                      color: COLORS.text.secondary,
-                      borderColor: COLORS.border.default,
-                    }}
-                  >
-                    Save planned dates
-                  </Button>
+                  {isScheduleDirty ? (
+                    <Button
+                      variant="outlined"
+                      onClick={() => {
+                        saveSchedule();
+                      }}
+                      sx={{
+                        alignSelf: "flex-start",
+                        textTransform: "none",
+                        fontWeight: 600,
+                        borderRadius: "10px",
+                        color: COLORS.text.secondary,
+                        borderColor: COLORS.border.default,
+                      }}
+                    >
+                      Save delivery date
+                    </Button>
+                  ) : null}
                 </Box>
               ) : (
-                <>
-                  <DetailBlock label="Dispatch" value={formatDateTime(delivery.dispatchAt)} />
-                  <DetailBlock label="Estimated delivery" value={formatDateTime(delivery.deliverBy)} />
-                </>
+                <DetailBlock label="Estimated delivery" value={formatDateTime(delivery.deliverBy)} />
               )}
               <DetailBlock label="Client" value={delivery.clientName} />
               <DetailBlock label="Phone" value={client?.phone ?? "—"} />
               <DetailBlock label="Email" value={client?.email ?? "—"} />
+              {delivery.stockWrittenOff ? (
+                <DetailBlock label="Stock" value="Written off on dispatch" />
+              ) : null}
 
               <Box>
                 <Typography
@@ -368,10 +597,110 @@ export const DeliveryDetailModal = ({ delivery, onClose }: DeliveryDetailModalPr
 
               {delivery.notes ? <DetailBlock label="Notes" value={delivery.notes} /> : null}
 
-              {canUpdate ? (
+              {delivery.failureReason ? (
+                <DetailBlock label="Failure reason" value={delivery.failureReason} />
+              ) : null}
+
+              {delivery.proof?.signatureUrl || delivery.proof?.photoUrl || delivery.proof?.lat ? (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontWeight: 700,
+                      letterSpacing: "0.04em",
+                      textTransform: "uppercase",
+                      color: COLORS.text.tertiary,
+                    }}
+                  >
+                    Proof of delivery
+                  </Typography>
+                  {delivery.proof.signatureUrl ? (
+                    <Box
+                      component="img"
+                      src={delivery.proof.signatureUrl}
+                      alt="Signature"
+                      sx={{ width: "100%", borderRadius: "10px", border: `1px solid ${COLORS.border.default}` }}
+                    />
+                  ) : null}
+                  {delivery.proof.photoUrl ? (
+                    <Box
+                      component="img"
+                      src={delivery.proof.photoUrl}
+                      alt="Delivery photo"
+                      sx={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: "10px" }}
+                    />
+                  ) : null}
+                  {delivery.proof.lat != null && delivery.proof.lng != null ? (
+                    <Typography variant="body2" sx={{ color: COLORS.text.secondary }}>
+                      {delivery.proof.lat.toFixed(5)}, {delivery.proof.lng.toFixed(5)}
+                    </Typography>
+                  ) : null}
+                </Box>
+              ) : null}
+
+              {canUpdate && !proofMode ? (
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 1 }}>
                   <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                    {delivery.status !== "In transit" ? (
+                    {isDriver && (delivery.status === "New" || delivery.status === "Planned") ? (
+                      <Button
+                        variant="contained"
+                        onClick={() => handleStatus("In transit")}
+                        sx={{
+                          textTransform: "none",
+                          fontWeight: 600,
+                          borderRadius: "10px",
+                          backgroundColor: COLORS.status.inTransit,
+                        }}
+                      >
+                        Start route
+                      </Button>
+                    ) : null}
+                    {isDriver && delivery.status === "In transit" ? (
+                      <Button
+                        variant="contained"
+                        onClick={() => handleStatus("Arrived")}
+                        sx={{
+                          textTransform: "none",
+                          fontWeight: 600,
+                          borderRadius: "10px",
+                          backgroundColor: COLORS.warning[600],
+                          "&:hover": { backgroundColor: COLORS.warning[700] },
+                        }}
+                      >
+                        Arrived on site
+                      </Button>
+                    ) : null}
+                    {isDriver && (delivery.status === "Arrived" || delivery.status === "In transit") ? (
+                      <>
+                        <Button
+                          variant="contained"
+                          onClick={() => setProofMode("done")}
+                          sx={{
+                            textTransform: "none",
+                            fontWeight: 600,
+                            borderRadius: "10px",
+                            backgroundColor: COLORS.success[600],
+                            "&:hover": { backgroundColor: COLORS.success[700] },
+                          }}
+                        >
+                          Complete delivery
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          onClick={() => setProofMode("failed")}
+                          sx={{
+                            textTransform: "none",
+                            fontWeight: 600,
+                            borderRadius: "10px",
+                            color: COLORS.error[700],
+                            borderColor: COLORS.error[200],
+                          }}
+                        >
+                          Could not deliver
+                        </Button>
+                      </>
+                    ) : null}
+                    {canManage && delivery.status !== "In transit" && delivery.status !== "Arrived" ? (
                       <Button
                         variant="contained"
                         disabled={!hasDraftSchedule}
@@ -390,7 +719,8 @@ export const DeliveryDetailModal = ({ delivery, onClose }: DeliveryDetailModalPr
                       >
                         Mark in transit
                       </Button>
-                    ) : (
+                    ) : null}
+                    {canManage && (delivery.status === "In transit" || delivery.status === "Arrived") ? (
                       <Button
                         variant="contained"
                         onClick={() => handleStatus("Done")}
@@ -404,28 +734,106 @@ export const DeliveryDetailModal = ({ delivery, onClose }: DeliveryDetailModalPr
                       >
                         Mark done
                       </Button>
-                    )}
-                    <Button
-                      variant="outlined"
-                      onClick={() => handleStatus("Canceled")}
+                    ) : null}
+                    {canManage && !confirmCancel ? (
+                      <Button
+                        variant="outlined"
+                        onClick={() => setConfirmCancel(true)}
+                        sx={{
+                          textTransform: "none",
+                          fontWeight: 600,
+                          borderRadius: "10px",
+                          color: COLORS.error[700],
+                          borderColor: COLORS.error[200],
+                        }}
+                      >
+                        Cancel delivery
+                      </Button>
+                    ) : null}
+                  </Box>
+                  {confirmCancel ? (
+                    <Box
                       sx={{
-                        textTransform: "none",
-                        fontWeight: 600,
-                        borderRadius: "10px",
-                        color: COLORS.error[700],
-                        borderColor: COLORS.error[200],
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 1,
+                        p: 1.5,
+                        borderRadius: "12px",
+                        border: `1px solid ${COLORS.error[200]}`,
+                        backgroundColor: COLORS.error[50],
                       }}
                     >
-                      Cancel delivery
-                    </Button>
-                  </Box>
-                  {delivery.status !== "In transit" && !hasDraftSchedule ? (
+                      <Typography variant="body2" sx={{ color: COLORS.error.text }}>
+                        Cancel this delivery? Packed goods return to warehouse stock
+                        {delivery.orderNumber ? ` and ${delivery.orderNumber} goes back to waiting.` : "."}
+                      </Typography>
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                        <Button
+                          variant="contained"
+                          onClick={() => handleStatus("Canceled")}
+                          sx={{
+                            textTransform: "none",
+                            fontWeight: 600,
+                            borderRadius: "10px",
+                            backgroundColor: COLORS.error[600],
+                            "&:hover": { backgroundColor: COLORS.error[700] },
+                          }}
+                        >
+                          Confirm cancel
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          onClick={() => setConfirmCancel(false)}
+                          sx={{
+                            textTransform: "none",
+                            fontWeight: 600,
+                            borderRadius: "10px",
+                            color: COLORS.text.secondary,
+                            borderColor: COLORS.border.default,
+                          }}
+                        >
+                          Keep delivery
+                        </Button>
+                      </Box>
+                    </Box>
+                  ) : null}
+                  {canManage &&
+                  delivery.status !== "In transit" &&
+                  delivery.status !== "Arrived" &&
+                  !hasDraftSchedule ? (
                     <Typography variant="caption" sx={{ color: COLORS.text.tertiary }}>
                       Set a planned date before marking this delivery in transit
                     </Typography>
                   ) : null}
                 </Box>
               ) : null}
+
+              {proofMode ? (
+                <ProofOfDeliveryForm
+                  mode={proofMode}
+                  onCancel={() => setProofMode(null)}
+                  onSubmit={({ proof, failureReason }) =>
+                    handleStatus(proofMode === "done" ? "Done" : "Failed", { proof, failureReason })
+                  }
+                />
+              ) : null}
+
+              <Box>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontWeight: 700,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                    color: COLORS.text.tertiary,
+                    display: "block",
+                    mb: 1,
+                  }}
+                >
+                  Activity
+                </Typography>
+                <ActivityTimeline entityType="delivery" entityId={delivery.id} />
+              </Box>
             </Box>
           ) : null}
         </Box>

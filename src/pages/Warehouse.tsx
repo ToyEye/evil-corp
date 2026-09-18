@@ -2,6 +2,7 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 
 import { PrivateLayout } from "../components/PrivateLayout/PrivateLayout";
+import { PickLists } from "../components/Warehouse/PickLists";
 import { RestockRequestsTable } from "../components/Warehouse/RestockRequestsTable";
 import { WarehouseTable } from "../components/Warehouse/WarehouseTable";
 import { COLORS } from "../theme/COLORS";
@@ -18,10 +19,16 @@ const Warehouse = () => {
             Warehouse
           </Typography>
           <Typography variant="body2" sx={{ color: COLORS.text.secondary }}>
-            Stock nomenclature for your company
+            Bins, pick lists, and stock nomenclature for your company
           </Typography>
         </Box>
+        <PickLists />
         <WarehouseTable />
+        <RestockRequestsTable
+          incomingOnly
+          title="Incoming receipts"
+          description="Supplier deliveries waiting to be put on the shelf"
+        />
         <RestockRequestsTable
           title="Restock requests"
           description="Requests sent to the supply department"

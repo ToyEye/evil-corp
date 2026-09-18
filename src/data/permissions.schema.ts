@@ -10,6 +10,9 @@ export const APP_PAGE_IDS = [
   "suppliers",
   "clients",
   "deliveries",
+  "orders",
+  "invoices",
+  "support",
 ] as const;
 
 export const appPageIdSchema = z.enum(APP_PAGE_IDS);
@@ -28,6 +31,9 @@ export const pageAccessSchema = z.object({
   suppliers: z.array(userRoleSchema),
   clients: z.array(userRoleSchema),
   deliveries: z.array(userRoleSchema),
+  orders: z.array(userRoleSchema),
+  invoices: z.array(userRoleSchema),
+  support: z.array(userRoleSchema),
 });
 
 export type AppPageId = z.infer<typeof appPageIdSchema>;
