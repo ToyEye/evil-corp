@@ -1,10 +1,14 @@
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSelector } from "react-redux";
 
 import { getApiErrorMessage, http } from "../api/http";
 import { queryKeys } from "../api/queryKeys";
 import type { LoginResponse, User } from "../store/auth/auth.interface";
 import {
   logout as logoutAction,
+  selectIsAuthenticated,
+  selectToken,
   setAuthError,
   setAuthLoading,
   setCredentials,
@@ -60,8 +64,9 @@ export const useLogout = () => {
   };
 };
 
-export const useMeQuery = (enabled = true) =>
-  useQuery({
+export const useMeQuery = (enabled = true) => {
+  const dispatch = useAppDispatch();
+  const query = useQuery({
     queryKey: queryKeys.auth.me,
     queryFn: async () => {
       const { data } = await http.get<User>("/auth/me");
@@ -69,6 +74,22 @@ export const useMeQuery = (enabled = true) =>
     },
     enabled,
   });
+
+  useEffect(() => {
+    if (query.data) {
+      dispatch(setUser(query.data));
+    }
+  }, [dispatch, query.data]);
+
+  return query;
+};
+
+/** Revalidate persisted session against `/auth/me` while authenticated. */
+export const useSessionSync = () => {
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+  const token = useSelector(selectToken);
+  useMeQuery(Boolean(isAuthenticated && token));
+};
 
 export const useUpdateMeMutation = () => {
   const dispatch = useAppDispatch();

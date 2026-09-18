@@ -20,17 +20,3 @@ const dummyCompaniesData: Company[] = [
 
 /** Seed / reference data only — live app helpers live in `utils/companyAccess`. */
 export const dummyCompanies = companiesSchema.parse(dummyCompaniesData);
-
-export {
-  canAssignCompanyRoles,
-  findCompanyById,
-  getAssignableMemberRoles,
-  getAssignableRoles,
-  getCompanyNameForUser,
-  getPlatformCompany,
-  getVisibleUsers,
-  isPlatformCompany,
-  isPlatformCompanyId,
-  isPlatformCompanyType,
-  isPlatformUser,
-} from "../utils/companyAccess";

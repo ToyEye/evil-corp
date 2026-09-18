@@ -13,8 +13,10 @@ export type JoinRequest = {
   companyName?: string | null;
   depotLat?: number | null;
   depotLng?: number | null;
+  hasPassword?: boolean;
   status: JoinRequestStatus;
   createdAt: string;
+  updatedAt?: string;
 };
 
 type CreateJoinRequestInput = {
@@ -30,15 +32,17 @@ type CreateJoinRequestInput = {
 type ApproveJoinRequestInput = {
   id: string;
   password?: string;
+  companyName?: string;
 };
 
-export const useJoinRequestsQuery = () =>
+export const useJoinRequestsQuery = (enabled = true) =>
   useQuery({
     queryKey: queryKeys.joinRequests.all,
     queryFn: async () => {
       const { data } = await http.get<JoinRequest[]>("/join-requests");
       return data;
     },
+    enabled,
   });
 
 export const useCreateJoinRequestMutation = () =>
@@ -53,10 +57,17 @@ export const useApproveJoinRequestMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, password }: ApproveJoinRequestInput) => {
+    mutationFn: async ({ id, password, companyName }: ApproveJoinRequestInput) => {
+      const body: { password?: string; companyName?: string } = {};
+      if (password) {
+        body.password = password;
+      }
+      if (companyName) {
+        body.companyName = companyName;
+      }
       const { data } = await http.post<JoinRequest>(
         `/join-requests/${id}/approve`,
-        password ? { password } : {},
+        body,
       );
       return data;
     },

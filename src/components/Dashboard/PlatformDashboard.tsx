@@ -1,3 +1,4 @@
+import { useState } from "react";
 import HowToRegOutlinedIcon from "@mui/icons-material/HowToRegOutlined";
 import PeopleOutlinedIcon from "@mui/icons-material/PeopleOutlined";
 import SupportAgentOutlinedIcon from "@mui/icons-material/SupportAgentOutlined";
@@ -7,18 +8,33 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 
+import { getApiErrorMessage } from "../../api/http";
 import {
   useApproveJoinRequestMutation,
   useJoinRequestsQuery,
   useRejectJoinRequestMutation,
   useSupportThreadsQuery,
   useUsersQuery,
+  type JoinRequest,
 } from "../../hooks";
 import { selectUser } from "../../store/auth/auth.slice";
 import { COLORS } from "../../theme/COLORS";
+import { formFieldSx } from "../Forms/formStyles";
 import { DashboardStatCard } from "./DashboardStatCard";
+
+type ApproveDraft = {
+  request: JoinRequest;
+  companyName: string;
+  password: string;
+  error: string | null;
+};
 
 export const PlatformDashboard = () => {
   const user = useSelector(selectUser);
@@ -31,13 +47,70 @@ export const PlatformDashboard = () => {
     data: joinRequestsData,
     isLoading: joinRequestsLoading,
     isError: joinRequestsError,
-  } = useJoinRequestsQuery();
+  } = useJoinRequestsQuery(isAdmin);
   const joinRequests = joinRequestsData ?? [];
   const pendingRequests = joinRequests.filter(
     (request) => request.status === "pending",
   );
   const approveJoinRequest = useApproveJoinRequestMutation();
   const rejectJoinRequest = useRejectJoinRequestMutation();
+  const [approveDraft, setApproveDraft] = useState<ApproveDraft | null>(null);
+
+  const needsApproveDetails = (request: JoinRequest) =>
+    !request.companyName?.trim() || !request.hasPassword;
+
+  const openApprove = (request: JoinRequest) => {
+    if (!needsApproveDetails(request)) {
+      approveJoinRequest.mutate({ id: request.id });
+      return;
+    }
+
+    setApproveDraft({
+      request,
+      companyName: request.companyName?.trim() ?? "",
+      password: "",
+      error: null,
+    });
+  };
+
+  const confirmApprove = async () => {
+    if (!approveDraft) {
+      return;
+    }
+
+    const companyName = approveDraft.companyName.trim();
+    if (!companyName) {
+      setApproveDraft({
+        ...approveDraft,
+        error: "Company name is required",
+      });
+      return;
+    }
+
+    if (!approveDraft.request.hasPassword && approveDraft.password.length < 8) {
+      setApproveDraft({
+        ...approveDraft,
+        error: "Password must be at least 8 characters",
+      });
+      return;
+    }
+
+    try {
+      await approveJoinRequest.mutateAsync({
+        id: approveDraft.request.id,
+        companyName,
+        password: approveDraft.request.hasPassword
+          ? undefined
+          : approveDraft.password,
+      });
+      setApproveDraft(null);
+    } catch (error) {
+      setApproveDraft({
+        ...approveDraft,
+        error: getApiErrorMessage(error, "Failed to approve request"),
+      });
+    }
+  };
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
@@ -71,7 +144,9 @@ export const PlatformDashboard = () => {
           gridTemplateColumns: {
             xs: "1fr",
             sm: "repeat(2, minmax(0, 360px))",
-            lg: isAdmin ? "repeat(3, minmax(0, 360px))" : "repeat(2, minmax(0, 360px))",
+            lg: isAdmin
+              ? "repeat(3, minmax(0, 360px))"
+              : "repeat(2, minmax(0, 360px))",
           },
           gap: 2,
         }}
@@ -176,6 +251,14 @@ export const PlatformDashboard = () => {
                 >
                   {request.message}
                 </Typography>
+                {!request.hasPassword ? (
+                  <Typography
+                    variant="caption"
+                    sx={{ color: COLORS.text.tertiary }}
+                  >
+                    No password on request — you will set one on approve
+                  </Typography>
+                ) : null}
               </Box>
               <Box sx={{ display: "flex", gap: 1, flexShrink: 0 }}>
                 <Button
@@ -195,9 +278,7 @@ export const PlatformDashboard = () => {
                   disabled={
                     approveJoinRequest.isPending || rejectJoinRequest.isPending
                   }
-                  onClick={() =>
-                    approveJoinRequest.mutate({ id: request.id })
-                  }
+                  onClick={() => openApprove(request)}
                   sx={{
                     backgroundColor: COLORS.primary[600],
                     "&:hover": { backgroundColor: COLORS.primary[700] },
@@ -210,6 +291,66 @@ export const PlatformDashboard = () => {
           ))}
         </Box>
       ) : null}
+
+      <Dialog
+        open={Boolean(approveDraft)}
+        onClose={() => setApproveDraft(null)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Approve join request</DialogTitle>
+        <DialogContent
+          sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}
+        >
+          {approveDraft?.error ? (
+            <Alert severity="error">{approveDraft.error}</Alert>
+          ) : null}
+          <TextField
+            label="Company name"
+            value={approveDraft?.companyName ?? ""}
+            onChange={(event) =>
+              setApproveDraft((current) =>
+                current
+                  ? { ...current, companyName: event.target.value, error: null }
+                  : current,
+              )
+            }
+            fullWidth
+            sx={formFieldSx}
+          />
+          {approveDraft && !approveDraft.request.hasPassword ? (
+            <TextField
+              label="Initial password"
+              type="password"
+              value={approveDraft.password}
+              onChange={(event) =>
+                setApproveDraft((current) =>
+                  current
+                    ? {
+                        ...current,
+                        password: event.target.value,
+                        error: null,
+                      }
+                    : current,
+                )
+              }
+              fullWidth
+              sx={formFieldSx}
+              helperText="At least 8 characters"
+            />
+          ) : null}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setApproveDraft(null)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={() => void confirmApprove()}
+            disabled={approveJoinRequest.isPending}
+          >
+            Approve
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

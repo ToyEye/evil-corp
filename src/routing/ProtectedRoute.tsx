@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 
+import { useSessionSync } from "../hooks";
 import { selectIsAuthenticated, selectUser } from "../store/auth/auth.slice";
 import { getCompanyNameForUser } from "../utils/companyAccess";
 import { paths, routes, toCompanySlug } from "./routes";
@@ -10,6 +11,7 @@ export const ProtectedRoute = () => {
   const user = useSelector(selectUser);
   const { companyName } = useParams();
   const location = useLocation();
+  useSessionSync();
 
   if (!isAuthenticated || !user) {
     return <Navigate to={routes.Home} replace />;

@@ -16,7 +16,7 @@ import {
   appPages,
   defaultPageAccess,
   isPageAccessLocked,
-} from "../../data/permissions.dummy";
+} from "../../data/permissions.defaults";
 import type { AppPageId } from "../../data/permissions.schema";
 import type { UserRole } from "../../data/users.schema";
 import {

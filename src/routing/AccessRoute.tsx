@@ -4,7 +4,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
 
 import { hasAccess } from "../components/Aside/aside.utils";
-import { appPages } from "../data/permissions.dummy";
+import { appPages } from "../data/permissions.defaults";
 import type { AppPageId } from "../data/permissions.schema";
 import { usePermissionsQuery } from "../hooks";
 import { selectUser } from "../store/auth/auth.slice";
