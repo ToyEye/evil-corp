@@ -9,6 +9,7 @@ import { SupportRoute } from "./SupportRoute";
 import { routes } from "./routes";
 
 const Home = lazy(() => import("../pages/Home"));
+const About = lazy(() => import("../pages/About"));
 const Dashboard = lazy(() => import("../pages/Dashboard"));
 const Users = lazy(() => import("../pages/Users"));
 const Settings = lazy(() => import("../pages/Settings"));
@@ -33,6 +34,14 @@ export const Router = () => {
         element={
           <PublicRoute>
             <Home />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path={routes.About}
+        element={
+          <PublicRoute>
+            <About />
           </PublicRoute>
         }
       />

@@ -3,6 +3,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { http } from "../api/http";
 import { queryKeys } from "../api/queryKeys";
 import type { Invoice } from "../data/invoices.schema";
+import {
+  filenameFromContentDisposition,
+  triggerBlobDownload,
+} from "../utils/downloadBlob";
 
 export const useInvoicesQuery = () =>
   useQuery({
@@ -31,3 +35,17 @@ export const useIssueInvoiceMutation = () => {
     },
   });
 };
+
+export const useDownloadInvoicePdfMutation = () =>
+  useMutation({
+    mutationFn: async (invoice: Pick<Invoice, "id" | "number">) => {
+      const response = await http.get<Blob>(`/invoices/${invoice.id}/pdf`, {
+        responseType: "blob",
+      });
+      const filename = filenameFromContentDisposition(
+        response.headers["content-disposition"],
+        `${invoice.number}.pdf`,
+      );
+      triggerBlobDownload(response.data, filename);
+    },
+  });

@@ -9,6 +9,7 @@ import {
   logout as logoutAction,
   selectIsAuthenticated,
   selectToken,
+  selectUser,
   setAuthError,
   setAuthLoading,
   setCredentials,
@@ -16,6 +17,7 @@ import {
   updateCurrentUser,
 } from "../store/auth/auth.slice";
 import { useAppDispatch } from "../store/types";
+import { isAccessTokenExpired } from "../utils/jwt";
 
 type LoginInput = {
   email: string;
@@ -66,6 +68,7 @@ export const useLogout = () => {
 
 export const useMeQuery = (enabled = true) => {
   const dispatch = useAppDispatch();
+  const token = useSelector(selectToken);
   const query = useQuery({
     queryKey: queryKeys.auth.me,
     queryFn: async () => {
@@ -76,19 +79,37 @@ export const useMeQuery = (enabled = true) => {
   });
 
   useEffect(() => {
-    if (query.data) {
+    if (query.data && token) {
       dispatch(setUser(query.data));
     }
-  }, [dispatch, query.data]);
+  }, [dispatch, query.data, token]);
 
   return query;
 };
 
 /** Revalidate persisted session against `/auth/me` while authenticated. */
 export const useSessionSync = () => {
+  const dispatch = useAppDispatch();
+  const queryClient = useQueryClient();
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const token = useSelector(selectToken);
-  useMeQuery(Boolean(isAuthenticated && token));
+  const user = useSelector(selectUser);
+  const tokenExpired = Boolean(token && isAccessTokenExpired(token));
+  const sessionOk = Boolean(isAuthenticated && user && token && !tokenExpired);
+
+  useEffect(() => {
+    if (tokenExpired || ((isAuthenticated || user) && !token)) {
+      dispatch(logoutAction());
+      queryClient.clear();
+    }
+  }, [dispatch, isAuthenticated, queryClient, token, tokenExpired, user]);
+
+  useMeQuery(sessionOk);
+
+  return {
+    isAuthenticated: sessionOk,
+    user: sessionOk ? user : null,
+  };
 };
 
 export const useUpdateMeMutation = () => {

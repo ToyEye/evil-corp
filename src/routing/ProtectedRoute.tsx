@@ -1,17 +1,13 @@
 import { Navigate, Outlet, useLocation, useParams } from "react-router-dom";
-import { useSelector } from "react-redux";
 
 import { useSessionSync } from "../hooks";
-import { selectIsAuthenticated, selectUser } from "../store/auth/auth.slice";
 import { getCompanyNameForUser } from "../utils/companyAccess";
 import { paths, routes, toCompanySlug } from "./routes";
 
 export const ProtectedRoute = () => {
-  const isAuthenticated = useSelector(selectIsAuthenticated);
-  const user = useSelector(selectUser);
+  const { isAuthenticated, user } = useSessionSync();
   const { companyName } = useParams();
   const location = useLocation();
-  useSessionSync();
 
   if (!isAuthenticated || !user) {
     return <Navigate to={routes.Home} replace />;
@@ -53,8 +49,7 @@ type LegacyCompanyRedirectProps = {
 };
 
 export const LegacyCompanyRedirect = ({ page }: LegacyCompanyRedirectProps) => {
-  const isAuthenticated = useSelector(selectIsAuthenticated);
-  const user = useSelector(selectUser);
+  const { isAuthenticated, user } = useSessionSync();
 
   if (!isAuthenticated || !user) {
     return <Navigate to={routes.Home} replace />;

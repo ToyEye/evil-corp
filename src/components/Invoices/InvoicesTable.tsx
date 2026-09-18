@@ -1,7 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useSelector } from "react-redux";
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Snackbar from "@mui/material/Snackbar";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -9,6 +12,7 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
+import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
 import {
   createColumnHelper,
   createPaginatedRowModel,
@@ -17,8 +21,9 @@ import {
   useTable,
 } from "@tanstack/react-table";
 
+import { getApiErrorMessageAsync } from "../../api/http";
 import type { Invoice } from "../../data/invoices.schema";
-import { useInvoicesQuery } from "../../hooks";
+import { useDownloadInvoicePdfMutation, useInvoicesQuery } from "../../hooks";
 import { selectUser } from "../../store/auth/auth.slice";
 import { COLORS } from "../../theme/COLORS";
 import { formatDateTime } from "../../utils/formatDateTime";
@@ -32,6 +37,69 @@ const invoicesTableFeatures = tableFeatures({
 });
 
 const columnHelper = createColumnHelper<typeof invoicesTableFeatures, Invoice>();
+
+const pdfButtonSx = {
+  minWidth: 0,
+  height: 36,
+  borderRadius: "10px",
+  textTransform: "none" as const,
+  fontWeight: 600,
+  color: COLORS.text.secondary,
+  borderColor: COLORS.border.default,
+  px: 1.5,
+  "&:hover": {
+    backgroundColor: COLORS.background.subtle,
+    borderColor: COLORS.border.strong,
+  },
+};
+
+const InvoicePdfButton = ({ invoice }: { invoice: Invoice }) => {
+  const downloadPdf = useDownloadInvoicePdfMutation();
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outlined"
+        size="small"
+        startIcon={
+          downloadPdf.isPending ? (
+            <CircularProgress size={16} />
+          ) : (
+            <PictureAsPdfOutlinedIcon />
+          )
+        }
+        disabled={downloadPdf.isPending}
+        aria-label={`Download ${invoice.number} PDF`}
+        onClick={() => {
+          setError(null);
+          downloadPdf.mutate(invoice, {
+            onError: (downloadError) => {
+              void getApiErrorMessageAsync(
+                downloadError,
+                "Failed to download invoice PDF",
+              ).then(setError);
+            },
+          });
+        }}
+        sx={pdfButtonSx}
+      >
+        PDF
+      </Button>
+      <Snackbar
+        open={Boolean(error)}
+        autoHideDuration={5000}
+        onClose={() => setError(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert severity="error" onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      </Snackbar>
+    </>
+  );
+};
 
 const columns = columnHelper.columns([
   columnHelper.accessor("number", {
@@ -65,6 +133,11 @@ const columns = columnHelper.columns([
     cell: (info) => (
       <Typography sx={{ color: COLORS.text.secondary }}>{formatDateTime(info.getValue())}</Typography>
     ),
+  }),
+  columnHelper.accessor("id", {
+    id: "pdf",
+    header: "",
+    cell: (info) => <InvoicePdfButton invoice={info.row.original} />,
   }),
 ]);
 

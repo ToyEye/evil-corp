@@ -2,6 +2,7 @@ import { generatePath } from "react-router-dom";
 
 export const routes = {
   Home: "/",
+  About: "/about",
   Dashboard: "/:companyName/dashboard",
   Users: "/:companyName/users",
   UsersRoles: "/:companyName/users/roles",

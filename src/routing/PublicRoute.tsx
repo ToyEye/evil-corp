@@ -1,13 +1,11 @@
 import { Navigate } from "react-router-dom";
-import { useSelector } from "react-redux";
 
-import { selectIsAuthenticated, selectUser } from "../store/auth/auth.slice";
+import { useSessionSync } from "../hooks";
 import { getCompanyNameForUser } from "../utils/companyAccess";
 import { paths } from "./routes";
 
 export const PublicRoute = ({ children }: { children: React.ReactNode }) => {
-  const isAuthenticated = useSelector(selectIsAuthenticated);
-  const user = useSelector(selectUser);
+  const { isAuthenticated, user } = useSessionSync();
 
   if (isAuthenticated && user) {
     return (

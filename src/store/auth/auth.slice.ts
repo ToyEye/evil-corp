@@ -41,6 +41,10 @@ export const authSlice = createSlice({
       state.isLoading = false;
     },
     setUser: (state, action: PayloadAction<User>) => {
+      if (!state.token) {
+        return;
+      }
+
       state.user = withCompanyType(action.payload, state.token);
       state.isAuthenticated = true;
     },

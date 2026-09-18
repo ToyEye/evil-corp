@@ -9,7 +9,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import Typography from "@mui/material/Typography";
 
 import { COLORS } from "../../theme/COLORS";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CustomTabPanel } from "../common/CustomTabPanel";
 import { LoginForm } from "../Forms/LoginForm";
 import { SignUpForm } from "../Forms/SignUpForm";
@@ -17,6 +17,7 @@ import { SignUpForm } from "../Forms/SignUpForm";
 type Props = {
   isOpen: boolean;
   onClose: () => void;
+  initialTab?: 0 | 1;
 };
 
 const a11yProps = (index: number) => {
@@ -26,11 +27,17 @@ const a11yProps = (index: number) => {
   };
 };
 
-export const AuthModal = ({ isOpen, onClose }: Props) => {
-  const [value, setValue] = useState(0);
+export const AuthModal = ({ isOpen, onClose, initialTab = 0 }: Props) => {
+  const [value, setValue] = useState(initialTab);
+
+  useEffect(() => {
+    if (isOpen) {
+      setValue(initialTab);
+    }
+  }, [isOpen, initialTab]);
 
   const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
-    setValue(newValue);
+    setValue(newValue === 1 ? 1 : 0);
   };
 
   return (
