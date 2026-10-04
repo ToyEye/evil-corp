@@ -1,146 +1,146 @@
 # Evil Corp
 
-Evil Corp — рабочее место для складских и транспортных компаний. Платформа выдаёт доступ, а каждая компания-клиент ведёт свой склад, заказы, счета и доставки в отдельном кабинете.
+Evil Corp is a workspace for warehouse and transport companies. The platform grants access, and each client company runs its own stock, orders, invoices, and deliveries in a private cabinet.
 
-Открытой регистрации нет. Человек оставляет заявку, администратор платформы её рассматривает, создаёт компанию и первую учётную запись SEO. Дальше компания сама настраивает роли и работает внутри своего кабинета.
+There is no open signup. A person submits a request, a platform admin reviews it, creates the company, and sets up the first SEO account. The company then configures roles and works inside its own cabinet.
 
-Интерфейс на React (Vite, MUI, Redux, React Query). Данные приходят из API (`VITE_API_URL`, по умолчанию `http://localhost:3000/api`).
+The UI is React (Vite, MUI, Redux, React Query). Data comes from the API (`VITE_API_URL`, default `http://localhost:3000/api`).
 
-## Как это устроено
+## How it works
 
-В системе два типа компаний.
+There are two kinds of companies.
 
-**Платформа** (в демо-данных это Vertex Capital) смотрит заявки на доступ, видит пользователей всех компаний и отвечает в поддержке. Склад, заказы и рейсы платформе не принадлежат.
+The **platform** (Vertex Capital in the demo data) reviews access requests, sees users across every company, and answers support chats. Warehouse, orders, and trips do not belong to the platform.
 
-**Компания-клиент** (RapidRoute Logistics, Peak Storage) получает свой адрес кабинета, например `/rapidroute-logistics/dashboard`. Внутри него:
+A **client company** (RapidRoute Logistics, Peak Storage) gets its own cabinet URL, for example `/rapidroute-logistics/dashboard`. Inside it:
 
-1. Сотрудник (Staff) создаёт заказ клиента и резервирует товар на складе.
-2. Кладовщик (Storekeeper) собирает заказ по ячейкам. Если товара не хватает, уходит заявка на пополнение.
-3. Снабжение (Supply) ведёт справочник поставщиков и проводит заявки на пополнение.
-4. Бухгалтер (Accountant) видит заказы и счета, выставленные по оплаченным заказам.
-5. Диспетчер (SEO или Staff) назначает машину и собирает маршрут на карте.
-6. Водитель (Driver) видит только свои рейсы: выезд, прибытие и подтверждение доставки.
-7. Если работа встала, любой сотрудник пишет в поддержку платформы.
+1. Staff creates a client order and reserves warehouse stock.
+2. A storekeeper picks the order from bins. If stock is short, a restock request goes out.
+3. Supply keeps the supplier directory and moves restock requests forward.
+4. An accountant sees orders and the invoices issued from paid orders.
+5. A dispatcher (SEO or Staff) assigns a vehicle and builds a route on the map.
+6. A driver sees only their own trips: depart, arrive, and proof of delivery.
+7. If work is blocked, anyone can message platform Support.
 
-SEO компании решает, какие роли видят какие страницы. Меню перестраивается сразу. Администратор платформы из настроек доступа не убирается.
+The company SEO decides which roles can open which pages. The sidebar updates immediately. The platform Admin cannot be removed from settings access.
 
-## Роли
+## Roles
 
-| Роль | Где работает | Что видит по умолчанию |
+| Role | Where | Default pages |
 | --- | --- | --- |
-| Admin | Платформа | Дашборд, пользователи всех компаний, настройки, поддержка |
-| Support | Платформа | Входящие чаты компаний-клиентов |
-| SEO | Компания-клиент | Почти весь кабинет и матрица доступа |
-| Staff | Компания-клиент | Клиенты, заказы, диспетчеризация |
-| Storekeeper | Компания-клиент | Склад: ячейки, сборка, приёмка |
-| Supply | Компания-клиент | Поставщики и заявки на пополнение |
-| Accountant | Компания-клиент | Заказы и счета |
-| Driver | Компания-клиент | Назначенные рейсы |
-| Client | Компания-клиент | Свой дашборд и чат с поддержкой |
+| Admin | Platform | Dashboard, users across all companies, settings, support |
+| Support | Platform | Inbox of client-company chats |
+| SEO | Client company | Almost the whole cabinet, plus the access matrix |
+| Staff | Client company | Clients, orders, dispatch |
+| Storekeeper | Client company | Warehouse: bins, picking, receipts |
+| Supply | Client company | Suppliers and restock requests |
+| Accountant | Client company | Orders and invoices |
+| Driver | Client company | Assigned trips |
+| Client | Client company | Own dashboard and the support chat |
 
-## Запуск
+## Run
 
 ```bash
 npm install
 npm run dev
 ```
 
-Приложение открывается на `http://localhost:5173`. Для входа нужен запущенный API.
+The app opens at `http://localhost:5173`. Sign-in needs the API running.
 
-## Скриншоты
+## Screenshots
 
-### Публичный сайт
+### Public site
 
-Главная: что умеет кабинет и как попасть внутрь — через заявку, а не через свободную регистрацию.
+Home: what the cabinet covers, and how to get in — by request, not by open signup.
 
-![Главная страница](docs/screenshots/01-home.png)
+![Home page](docs/screenshots/01-home.png)
 
-Страница About: платформа и компании-клиенты разделены, роли не видят чужие разделы.
+About: the platform and client companies stay separate, and roles stay on their own pages.
 
-![Страница About](docs/screenshots/02-about.png)
+![About page](docs/screenshots/02-about.png)
 
-Вход и заявка на доступ открываются в одном окне.
+Sign-in and the access request share one window.
 
-![Окно входа](docs/screenshots/03-sign-in.png)
+![Sign-in window](docs/screenshots/03-sign-in.png)
 
-### Платформа — Admin
+### Platform — Admin
 
-Дашборд администратора John Doe (Vertex Capital): число пользователей, чаты поддержки и очередь заявок. Из заявки создаётся компания и первый SEO.
+John Doe's admin dashboard (Vertex Capital): user count, support chats, and the request queue. Approving a request creates the company and the first SEO account.
 
-![Дашборд администратора платформы](docs/screenshots/04-admin-dashboard.png)
+![Platform admin dashboard](docs/screenshots/04-admin-dashboard.png)
 
-Список пользователей всех компаний. Администратор фильтрует по имени, компании и роли и может добавить сотрудника.
+Users across every company. The admin filters by name, company, and role, and can add a person.
 
-![Пользователи всех компаний](docs/screenshots/05-admin-users.png)
+![Users across companies](docs/screenshots/05-admin-users.png)
 
-### Платформа — Support
+### Platform — Support
 
-Входящие поддержки у Lena Ortiz: чаты сотрудников компаний-клиентов. Ответ пишется в выбранной переписке.
+Lena Ortiz's support inbox: chats from client-company staff. The reply goes into the selected thread.
 
-![Входящие поддержки](docs/screenshots/18-support-inbox.png)
+![Support inbox](docs/screenshots/18-support-inbox.png)
 
-### Компания-клиент — SEO
+### Client company — SEO
 
-Дашборд Ethan Park (RapidRoute Logistics): сотрудники, клиенты, поставщики, заявки на пополнение и список того, что требует внимания — низкий остаток и просроченные рейсы.
+Ethan Park's dashboard (RapidRoute Logistics): employees, clients, suppliers, restock requests, and what needs attention — low stock and late trips.
 
-![Дашборд SEO компании](docs/screenshots/06-seo-dashboard.png)
+![Client company SEO dashboard](docs/screenshots/06-seo-dashboard.png)
 
-Настройки доступа: SEO отмечает, какая роль открывает какую страницу. Боковое меню обновляется сразу.
+Access settings: the SEO checks which role can open each page. The sidebar updates immediately.
 
-![Матрица доступа к страницам](docs/screenshots/07-seo-settings.png)
+![Page access matrix](docs/screenshots/07-seo-settings.png)
 
-Диспетчерская: карта маршрута, остановки и заказы, которые ещё не поставлены в рейс.
+Dispatch: the route map, stops, and orders that are not on a trip yet.
 
-![Диспетчерская доска](docs/screenshots/15-seo-dispatch.png)
+![Dispatch board](docs/screenshots/15-seo-dispatch.png)
 
-Автопарк: машины, занятая вместимость и сколько мест осталось на открытых рейсах.
+Fleet: vehicles, capacity already on trips, and what is still free.
 
-![Автопарк](docs/screenshots/16-seo-fleet.png)
+![Fleet](docs/screenshots/16-seo-fleet.png)
 
-### Компания-клиент — Storekeeper
+### Client company — Storekeeper
 
-Склад Sofia Alvarez: сборка заказов по ячейкам и номенклатура. Красная строка — критический остаток.
+Sofia Alvarez's warehouse: pick lists by bin and the stock list. A red row is a critical quantity.
 
-![Склад кладовщика](docs/screenshots/08-storekeeper-warehouse.png)
+![Storekeeper warehouse](docs/screenshots/08-storekeeper-warehouse.png)
 
-### Компания-клиент — Supply
+### Client company — Supply
 
-Справочник поставщиков Harper Quinn: тип поставщика и чего он не возит.
+Harper Quinn's supplier directory: supplier type and what they do not supply.
 
-![Справочник поставщиков](docs/screenshots/09-supply-directory.png)
+![Supplier directory](docs/screenshots/09-supply-directory.png)
 
-Заявки на пополнение: откуда пришли (склад или конкретный заказ), статус и комментарий.
+Restock requests: where they came from (warehouse or a specific order), status, and note.
 
-![Заявки на пополнение](docs/screenshots/10-supply-restock.png)
+![Restock requests](docs/screenshots/10-supply-restock.png)
 
-### Компания-клиент — Staff
+### Client company — Staff
 
-Клиенты Owen Blake: контакты и адреса, на которые потом уезжают заказы.
+Owen Blake's clients: contacts and the addresses later orders ship to.
 
-![Клиенты компании](docs/screenshots/11-staff-clients.png)
+![Company clients](docs/screenshots/11-staff-clients.png)
 
-Заказы: оплата и складской статус. Один заказ уже готов к отгрузке, второй ждёт товар.
+Orders: payment and warehouse status. One order is ready to ship, the other is waiting for stock.
 
-![Список заказов](docs/screenshots/12-staff-orders.png)
+![Order list](docs/screenshots/12-staff-orders.png)
 
-Новый заказ резервирует товар на складе. Сотрудник выбирает клиента, адрес и позиции.
+A new order reserves warehouse stock. Staff picks the client, address, and line items.
 
-![Форма нового заказа](docs/screenshots/13-staff-create-order.png)
+![Create order form](docs/screenshots/13-staff-create-order.png)
 
-### Компания-клиент — Accountant
+### Client company — Accountant
 
-Счета Maya Singh выпускаются из оплаченных заказов. PDF скачивается из строки.
+Maya Singh's invoices are issued from paid orders. The PDF downloads from the row.
 
-![Счета](docs/screenshots/14-accountant-invoices.png)
+![Invoices](docs/screenshots/14-accountant-invoices.png)
 
-### Компания-клиент — Driver
+### Client company — Driver
 
-Рейсы Liam Brooks. Водитель видит только свои остановки: адрес, статус и кнопку, чтобы открыть рейс.
+Liam Brooks's trips. The driver sees only their stops: address, status, and the button to open the trip.
 
-![Рейсы водителя](docs/screenshots/17-driver-trips.png)
+![Driver trips](docs/screenshots/17-driver-trips.png)
 
-### Компания-клиент — Client
+### Client company — Client
 
-Чат Daniel Crowe с поддержкой платформы. У роли Client нет склада и заказов — только свой кабинет и это обращение.
+Daniel Crowe's chat with platform Support. The Client role has no warehouse or orders — only their cabinet and this thread.
 
-![Чат клиента с поддержкой](docs/screenshots/19-client-support.png)
+![Client support chat](docs/screenshots/19-client-support.png)
